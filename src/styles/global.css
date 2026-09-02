@@ -1,0 +1,672 @@
+/* Dizayn tokenlari — "Diktant Platformasi" maketidan olingan. */
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+a { color: #2563EB; text-decoration: none; }
+a:hover { color: #1D4ED8; text-decoration: underline; }
+
+input::placeholder, textarea::placeholder { color: var(--text-secondary); }
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+
+@keyframes softPulse { 0%, 100% { opacity: .3; } 50% { opacity: .75; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Listening test rejimi — 2 ustunli tartib (chapda video, o'ngda savollar).
+   Diktant sahifasi (`features/lessons/DictationPage.tsx`) da ishlatiladi.
+   Savollar paneli o'z ichida scroll qiladi va video sticky bo'lib qoladi —
+   foydalanuvchi savolni o'qiyotib videoni ko'z oldidan yo'qotmaydi. */
+.test-layout {
+  display: grid;
+  /* Video chapda, imtihon paneli o'ngda. `minmax(0, ...)` — grid item'lar
+     KENGLIGI 0 gacha qisqara oladi (aks holda min-content oshib gorizontal
+     scroll chiqardi). Shu bois hech qachon sahifa gorizontal scroll bo'lmaydi. */
+  grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
+  gap: clamp(14px, 2vw, 28px);
+  align-items: start;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+.test-layout-video {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;   /* item qisqara olsin */
+}
+.test-layout-panel {
+  position: relative;
+  min-width: 0;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+/* Tablet/telefon (≤ 1024px): video tepada (sticky emas — joy kam), savollar
+   pastda va sahifaning o'zi bilan birga scroll qiladi. Bitta ustun. */
+@media (max-width: 1024px) {
+  .test-layout { grid-template-columns: 1fr; }
+  .test-layout-video { position: static; }
+  .test-layout-panel { max-height: none; overflow-y: visible; padding-right: 0; }
+}
+
+/* Diktant sahifasidagi ikki tanlov kartochkasi — Imtihon vs Diktant.
+   Ikkalasi bir xil styling: neutral fon, neutral chegara, neutral matn.
+   Hover yoki fokusda yashil aksent — foydalanuvchi qaysi biriga bosishni
+   bilib turadi lekin oldindan tanlangan variant yo'q. */
+.modechoice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color .14s ease, background .14s ease, transform .12s ease;
+}
+.modechoice-btn:hover,
+.modechoice-btn:focus-visible {
+  border-color: #10B981;
+  background: var(--ok-bg);
+  outline: none;
+  transform: translateY(-1px);
+}
+.modechoice-btn:hover .modechoice-icon,
+.modechoice-btn:focus-visible .modechoice-icon {
+  color: #059669;
+  background: rgba(16, 185, 129, .16);
+}
+.modechoice-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg); color: var(--text-secondary);
+  transition: color .14s, background .14s;
+}
+.modechoice-title { font-size: 15px; font-weight: 800; }
+.modechoice-desc {
+  font-size: 12px; font-weight: 500; color: var(--text-secondary); line-height: 1.4;
+}
+@media (max-width: 520px) {
+  .modechoice { grid-template-columns: 1fr !important; }
+}
+
+/* Onboarding ipuchi ("coach mark") — kichik kartochka pastdan yumshoq chiqadi.
+   Fon qorayimaydi, video davom etaveradi. `components/OnboardingHint.tsx`.
+   Ilgari bu yerda `qposHint` puls animatsiyasi bor edi — u har slotda qayta
+   yonib o'chardi va tushunarsiz edi; o'rniga bir martalik ipuchi keldi
+   (`utils/onboarding.ts` — 2 kunlik oyna + bir marta ko'rsatish). */
+@keyframes onbHintIn {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.onb-hint { animation: onbHintIn .28s cubic-bezier(.2, .8, .2, 1) 1; }
+/* `bottom-center` joylashuvida X markazlash transform'i saqlanishi kerak —
+   shu bois unga alohida keyframe. */
+@keyframes onbHintInCenter {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px) scale(.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.onb-hint--center { animation-name: onbHintInCenter; }
+
+/* Chizmadagi "to'lish" — ipuchi ochilganda vaqt oqayotgani sezilsin. */
+@keyframes onbFillV { from { height: 6%; } to { height: 62%; } }
+@keyframes onbFillH { from { width: 6%; } to { width: 58%; } }
+.onb-fill-v { animation: onbFillV 2.4s ease-in-out infinite alternate; height: 62%; }
+.onb-fill-h { animation: onbFillH 2.4s ease-in-out infinite alternate; width: 58%; }
+.onb-arrow  { animation: softPulse 1.6s ease-in-out infinite; }
+
+/* Ipuchi ochiq turganda tegishli tugmani ajratib ko'rsatadigan halqa. */
+.onb-spotlight {
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(16,185,129,.45), 0 0 0 9px rgba(16,185,129,.14);
+  transition: box-shadow .2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-hint, .onb-fill-v, .onb-fill-h, .onb-arrow { animation: none; }
+}
+
+:root, [data-theme="light"] {
+  --bg: #F1F5F9;
+  --bg-secondary: #F8FAFC;
+  --card-bg: rgba(255, 255, 255, .55);
+  --card-border: rgba(255, 255, 255, .7);
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text-secondary: #64748B;
+  --tint-a: #D1FAE5;
+  --tint-b: #DBEAFE;
+  --tint-c: #FCE7F3;
+  --tint-d: #FEF3C7;
+  --tint-e: #EDE9FE;
+  --ring-color: rgba(148, 163, 184, .4);
+  --navbar-bg: #FFFFFF;
+  --navbar-text: #0F172A;
+  --navbar-text-muted: #64748B;
+  --navbar-border: rgba(226, 232, 240, .8);
+  --info-bg: #EFF6FF;
+  --info-border: #BFDBFE;
+  --info-text: #1D4ED8;
+  --ok-bg: #ECFDF5;
+  --ok-text: #059669;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .03), 0 6px 16px rgba(15, 23, 42, .05);
+  --shadow-md: 0 10px 28px rgba(15, 23, 42, .1);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, .18);
+}
+
+[data-theme="dark"] {
+  --bg: #0B1220;
+  --bg-secondary: #0F1B2E;
+  --card-bg: rgba(20, 31, 53, .55);
+  --card-border: rgba(255, 255, 255, .08);
+  --border: #26334A;
+  --text: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --tint-a: rgba(16, 185, 129, .22);
+  --tint-b: rgba(37, 99, 235, .22);
+  --tint-c: rgba(219, 39, 119, .18);
+  --tint-d: rgba(217, 119, 6, .18);
+  --tint-e: rgba(124, 58, 237, .22);
+  --ring-color: rgba(148, 163, 184, .16);
+  --navbar-bg: #0F172A;
+  --navbar-text: #FFFFFF;
+  --navbar-text-muted: #94A3B8;
+  --navbar-border: #1E293B;
+  --info-bg: rgba(37, 99, 235, .16);
+  --info-border: rgba(37, 99, 235, .35);
+  --info-text: #93C5FD;
+  --ok-bg: rgba(16, 185, 129, .16);
+  --ok-text: #34D399;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 16px rgba(0, 0, 0, .35);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, .45);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, .6);
+}
+
+/* --- Umumiy sinflar ---------------------------------------------------- */
+/*
+ * PERFORMANS: `.app-bg` avval `background-attachment: fixed` + 5 ta katta
+ * radial-gradient ishlatgan edi — scroll paytida brauzer har freym'da butun
+ * fon layerni qayta kompozitsiya qilishga majbur bo'lardi. Bu asosiy jank
+ * sababi edi. Endi fon `::before` pseudo-element sifatida `position: fixed`
+ * bilan ajratilgan — GPU'ga alohida layer sifatida beriladi va scroll uni
+ * qayta chizmaydi.
+ */
+.app-bg {
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  transition: color .2s;
+}
+.app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(800px 480px at 8% 6%, var(--tint-a) 0%, transparent 60%),
+    radial-gradient(800px 480px at 46% 2%, var(--tint-c) 0%, transparent 58%),
+    radial-gradient(800px 480px at 88% 8%, var(--tint-b) 0%, transparent 58%),
+    radial-gradient(800px 560px at 6% 42%, var(--tint-d) 0%, transparent 62%),
+    radial-gradient(800px 560px at 92% 46%, var(--tint-e) 0%, transparent 62%);
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/*
+ * PERFORMANS: avval har `.card` da `backdrop-filter: blur(20px)` bor edi —
+ * scroll paytida har bir ko'rinadigan karta orqasidagi pikselni GPU sample
+ * qilib blurladi. Bir sahifada 10+ ta karta bo'lsa bu sezilarli lag edi.
+ * Endi to'liq nomus (opaque) fon — vizual jihatdan deyarli o'xshash, lekin
+ * scroll silliq bo'ladi.
+ */
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-hover { transition: box-shadow .15s, transform .15s; }
+.card-hover:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+/* YouTube uslubidagi kartochka — border/fon yo'q, faqat thumbnail va matn.
+ * Hover'da thumbnail biroz kattaroq, title rangi ozgina o'zgaradi. */
+.yt-card { cursor: pointer; }
+.yt-card > div:first-child { transition: transform .18s ease; }
+.yt-card:hover > div:first-child { transform: scale(1.015); }
+
+/* Sayt asosiy konteyneri — topics/lessons/dictation sahifalari uchun.
+ * Katta ekranda ham keng bo'lsin (rasmli kartalar sig'sin). */
+.page { padding: 28px clamp(16px, 3vw, 40px) 80px; margin: 0 auto; width: 100%; max-width: 1440px; }
+
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter .15s, transform .05s;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #FFF;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, .25);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn-ghost {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.field {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 15px;
+  outline: none;
+}
+.field:focus { border-color: #10B981; }
+
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.grid-auto { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+
+.scroll-x { overflow-x: auto; }
+
+/* Mobil moslashuv */
+@media (max-width: 640px) {
+  .page { padding: 20px 16px 96px; }
+  .grid-auto { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .hide-mobile { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+/* =====================================================================
+   Shorts feed — YouTube Shorts uslubidagi vertikal lenta
+   ---------------------------------------------------------------------
+   O'lchamlar bitta manbadan: `--slot-h` (JS o'lchaydi, scroll konteyner
+   balandligi). Undan video balandligi, undan video kengligi kelib chiqadi.
+   Shu sabab video / rail / savollar paneli piksel-aniq tekislanadi.
+   ===================================================================== */
+.shorts-root {
+  --slot-pad: clamp(8px, 1.4vw, 18px);
+  --gap: clamp(8px, 1.2vw, 16px);
+  --rail-w: 58px;
+  /* Savollar paneli shundan tor bo'lmaydi — kengaytirildi (420 → foydalanuvchi
+     savollarni qulay o'qishi uchun). */
+  --panel-min: 440px;
+  --stage-w: min(1600px, calc(100vw - 2 * var(--slot-pad)));
+  --stage-h: calc(var(--slot-h, 600px) - 2 * var(--slot-pad));
+  /* Video eng avvalo BALANDLIKKA to'ladi; kenglik faqat panel uchun joy
+     qolmaganda cheklaydi. Ilgari `27vw` qattiq chegara edi va o'rtacha
+     ekranlarda video kichkina bo'lib, tepa-pastda bo'sh joy qolardi. */
+  --vid-max-w: max(200px, calc(var(--stage-w) - var(--rail-w) - 2 * var(--gap) - var(--panel-min)));
+  --vid-h: min(var(--stage-h), calc(var(--vid-max-w) * 16 / 9));
+  --vid-w: calc(var(--vid-h) * 9 / 16);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.shorts-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px clamp(12px, 3vw, 24px);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.shorts-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.shorts-scroll::-webkit-scrollbar { display: none; }
+
+.shorts-slot {
+  height: 100%;
+  scroll-snap-align: start;
+  /* Bitta "flick" = bitta video. Brauzer bir necha slotni sakrab o'tmaydi —
+     shu sabab wheel/touch'ni JS bilan ushlab turish kerak emas. */
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--slot-pad);
+  contain: layout paint;
+}
+
+.shorts-stage {
+  width: 100%;
+  max-width: 1600px;
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap);
+}
+
+.shorts-video {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--vid-w);
+  height: var(--vid-h);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-lg);
+}
+.shorts-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.shorts-poster-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  background: #0f172a;
+  color: rgba(255, 255, 255, .7);
+}
+.shorts-player {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+/* YT.Player holder <div> ni <iframe> bilan almashtiradi — klass yo'qoladi,
+   shu sabab o'ram orqali o'lchov beramiz. */
+.shorts-player iframe,
+.shorts-player > div {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+  display: block;
+}
+
+.shorts-rail {
+  flex: 0 0 auto;
+  width: var(--rail-w);
+  height: var(--vid-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+.shorts-rail-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.shorts-railbtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.shorts-railbtn:disabled { opacity: .3; cursor: not-allowed; }
+.shorts-railbtn i {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, .16);
+  border: 1px solid rgba(148, 163, 184, .22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-style: normal;
+  color: var(--text);
+  transition: transform .12s ease, background .12s ease;
+}
+.shorts-railbtn:hover:not(:disabled) i { transform: scale(1.06); background: rgba(148, 163, 184, .3); }
+.shorts-railbtn.is-active i {
+  background: linear-gradient(135deg, rgba(16, 185, 129, .9), rgba(5, 150, 105, .9));
+  border-color: rgba(16, 185, 129, .7);
+  color: #fff;
+}
+.shorts-railbtn span { font-size: 10.5px; font-weight: 800; }
+
+.shorts-panel {
+  --sq-scale: 1;                  /* A- / A+ shrift skaleri (default 1) */
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Ilgari 680px edi — endi ancha kengroq (900) va foydalanuvchi savollarni
+     qulay o'qiy oladi. Ekran keng bo'lsa video ham katta bo'ladi va panel
+     ham keng qoladi. */
+  max-width: 900px;
+  height: var(--vid-h);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: clamp(12px, 1.6vw, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+.shorts-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+.shorts-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+}
+.shorts-tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  transition: background .12s ease;
+}
+.shorts-tab.is-active {
+  background: var(--bg-secondary);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+}
+.shorts-tab b { font-size: calc(12.5px * var(--sq-scale, 1)); font-weight: 800; }
+.shorts-tab small { font-size: calc(10px * var(--sq-scale, 1)); font-weight: 700; opacity: .75; }
+
+.shorts-q {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.shorts-q-head { display: flex; align-items: flex-start; gap: 10px; }
+.shorts-q-num {
+  flex: 0 0 auto;
+  width: 24px; height: 24px; margin-top: 1px;
+  border-radius: 50%;
+  color: #fff; font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.shorts-q-text { font-size: calc(15px * var(--sq-scale, 1)); font-weight: 700; line-height: 1.5; }
+
+.shorts-opt {
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: calc(14px * var(--sq-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  transition: border-color .12s ease, background .12s ease;
+}
+.shorts-opt:disabled { cursor: default; }
+.shorts-opt.is-picked { border-color: #2563eb; }
+.shorts-opt.is-correct { background: var(--ok-bg); color: var(--ok-text); border-color: #10b981; }
+.shorts-opt.is-wrong { background: rgba(239, 68, 68, .12); color: #ef4444; border-color: #ef4444; }
+.shorts-opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.shorts-opt-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.shorts-opt-row .shorts-opt { border-radius: 999px; padding: 7px 14px; font-weight: 800; }
+
+/* Bottom-sheet o'ram — desktop'da shaffof (panel avvalgidek stage flex bolasi). */
+.shorts-sheet { display: contents; }
+.shorts-sheet-handle { display: none; }
+
+/* Mobil (≤900px): YouTube/Instagram Shorts uslubi — video TO'LIQ ekran,
+   action tugmalari o'ngda vertikal overlay, savollar pastdan ochiladigan
+   bottom-sheet ("komment" kabi). */
+@media (max-width: 900px) {
+  .shorts-slot { padding: 0; }
+  .shorts-root { --vid-h: var(--stage-h); }
+
+  /* Video full-bleed */
+  .shorts-stage {
+    position: relative; display: block;
+    width: 100%; height: 100%; max-width: none; gap: 0;
+  }
+  .shorts-video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border-radius: 0; box-shadow: none;
+  }
+
+  /* Action rail — o'ngda vertikal overlay (video ustida), yarim-shaffof oq
+     tugmalar (YouTube kabi). Up/down yashirin — swipe bilan yuriladi. */
+  .shorts-rail {
+    position: absolute;
+    right: 8px; bottom: 92px; left: auto; top: auto;
+    width: auto; height: auto;
+    flex-direction: column; justify-content: flex-end;
+    gap: 18px; padding: 0; z-index: 12;
+  }
+  .shorts-rail-group { flex-direction: column; gap: 18px; }
+  .shorts-nav-group { display: none; }
+  .shorts-railbtn i {
+    width: 46px; height: 46px; font-size: 21px;
+    background: rgba(0, 0, 0, .42);
+    border-color: rgba(255, 255, 255, .18);
+    color: #fff;
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  .shorts-railbtn span { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+
+  .shorts-opt-grid { grid-template-columns: 1fr; }
+
+  /* --- Savollar bottom-sheet --- */
+  .shorts-sheet:not(.playing) { display: none; }   /* faqat faol slot sheet'i */
+  .shorts-sheet.playing {
+    display: flex; flex-direction: column;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    height: 84vh; max-height: 84vh;
+    background: var(--bg);
+    border-top-left-radius: 20px; border-top-right-radius: 20px;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, .4);
+    transform: translateY(calc(84vh - 58px));   /* peek: faqat handle */
+    transition: transform .32s cubic-bezier(.2, .8, .2, 1);
+  }
+  .shorts-sheet.playing.is-open { transform: translateY(0); }
+
+  .shorts-sheet-handle {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    flex: 0 0 auto; height: 58px; padding: 16px 18px 0;
+    border: none; background: transparent; cursor: pointer;
+    color: var(--text); font-family: inherit; font-size: 14.5px; font-weight: 800;
+    border-bottom: 1px solid var(--border);
+  }
+  .shorts-sheet-grip {
+    position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+    width: 40px; height: 4px; border-radius: 999px; background: var(--border);
+  }
+  .shorts-sheet-title { flex: 1; text-align: left; }
+  .shorts-sheet-caret { font-size: 13px; color: var(--text-secondary); }
+
+  .shorts-sheet.playing .shorts-panel {
+    width: 100%; max-width: none; height: auto; flex: 1 1 auto; min-height: 0;
+    border: none; border-radius: 0; background: transparent;
+    padding: 12px 14px 24px;
+  }
+  .shorts-sheet.playing .shorts-panel-body { overscroll-behavior: contain; }
+}
