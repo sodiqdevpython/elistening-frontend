@@ -7,16 +7,18 @@ import { useAuth } from '@/store/auth'
 import { fetchSiteConfig } from '@/api/endpoints'
 import { HeadphoneIcon, MoonIcon, SunIcon } from './ui'
 import { formatMinutes } from '@/utils/format'
+import LimitGate from './LimitGate'
 
 /**
  * Navbar'da bugungi tinglash vaqti — istalgan sahifada ko'rinib turadi.
  * Auth store `today_seconds` ni yangilaydi (dars davomida audio play qilinganda).
  */
 function TodayTimeIndicator() {
+  const t = useT()
   const { user, isLoggedIn } = useAuth()
   if (!isLoggedIn || !user) return null
   return (
-    <span title="Bugungi tinglash vaqti"
+    <span title={t.todayListenTime}
       data-today-pill
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -178,7 +180,7 @@ export default function Layout() {
             aria-label={theme === 'light' ? t.themeDark : t.themeLight}>
             {theme === 'light' ? <MoonIcon size={16} /> : <SunIcon size={16} />}
           </button>
-          <button onClick={toggleLang} style={toggleBtn} aria-label="Language">
+          <button onClick={toggleLang} style={toggleBtn} aria-label={t.languageAria}>
             {lang === 'uz' ? 'UZ' : 'EN'}
           </button>
         </div>
@@ -209,6 +211,10 @@ export default function Layout() {
       <main style={{ position: 'relative', zIndex: 1 }}>
         <Outlet />
       </main>
+
+      {/* Kunlik limit oynasi — istalgan endpoint 403 `limit_reached` qaytarsa
+          ochiladi (ilova darajasida bitta nusxa). */}
+      <LimitGate />
 
       {/* Shorts uchun tez kirish tugmasi — labeled pill (ikonka + matn),
           shu bois foydalanuvchi nima ekanligini bir qarashda tushunadi. */}

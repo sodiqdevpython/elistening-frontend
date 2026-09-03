@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ShortReportReason } from '@/api/endpoints'
+import { useT } from '@/i18n'
+import type { Strings } from '@/i18n/strings'
 
 /**
  * Shikoyat va "savol xato tuzilgan" modallari — **Shorts va Diktant test
@@ -16,6 +18,7 @@ export function ModalShell({ title, onClose, children }: {
   onClose: () => void
   children: React.ReactNode
 }) {
+  const t = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -43,7 +46,7 @@ export function ModalShell({ title, onClose, children }: {
           <div style={{ flex: 1 }} />
           <button
             onClick={onClose}
-            aria-label="Yopish"
+            aria-label={t.close}
             style={{
               width: 30, height: 30, borderRadius: '50%',
               background: 'var(--bg-secondary)', border: '1px solid var(--border)',
@@ -60,14 +63,14 @@ export function ModalShell({ title, onClose, children }: {
 
 /** Server javobidan foydalanuvchiga ko'rsatiladigan matn chiqaradi.
  *  409 (allaqachon yuborilgan) — xato emas, "yuborilgan" deb hisoblanadi. */
-function describeError(e: unknown): { alreadySent: boolean; message: string } {
+function describeError(e: unknown, t: Strings): { alreadySent: boolean; message: string } {
   const err = e as { response?: { status?: number; data?: { detail?: string } } }
   const status = err?.response?.status
   if (status === 409) return { alreadySent: true, message: '' }
-  if (status === 401) return { alreadySent: false, message: 'Yuborish uchun kirish kerak.' }
+  if (status === 401) return { alreadySent: false, message: t.loginRequired }
   return {
     alreadySent: false,
-    message: err?.response?.data?.detail || "Yubora olmadik. Qaytadan urinib ko'ring.",
+    message: err?.response?.data?.detail || t.sendFailed,
   }
 }
 
@@ -77,6 +80,7 @@ export function ReportModal({ loadReasons, submit, onClose, onSubmitted }: {
   onClose: () => void
   onSubmitted: () => void
 }) {
+  const t = useT()
   const [reasons, setReasons] = useState<ShortReportReason[]>([])
   const [chosen, setChosen] = useState<string>('')
   const [text, setText] = useState('')
@@ -93,20 +97,20 @@ export function ReportModal({ loadReasons, submit, onClose, onSubmitted }: {
   }, [])
 
   const send = async () => {
-    if (!chosen) { setError('Iltimos, sabab tanlang.'); return }
+    if (!chosen) { setError(t.reportPickReason); return }
     setBusy(true); setError('')
     try {
       await submit({ reason: chosen, text: text.trim() || undefined })
       onSubmitted()
     } catch (e: unknown) {
-      const { alreadySent, message } = describeError(e)
+      const { alreadySent, message } = describeError(e, t)
       if (alreadySent) onSubmitted()
       else setError(message)
     } finally { setBusy(false) }
   }
 
   return (
-    <ModalShell title="Shikoyat yuborish" onClose={onClose}>
+    <ModalShell title={t.reportSendTitle} onClose={onClose}>
       <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         Ushbu video haqida sababni tanlang. Ma&apos;muriyat ko&apos;rib chiqadi.
       </p>
@@ -143,7 +147,7 @@ export function ReportModal({ loadReasons, submit, onClose, onSubmitted }: {
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={busy}
-        placeholder="Ixtiyoriy — qo'shimcha izoh yozing (masalan: aniq daqiqa, kontekst)…"
+        placeholder={t.reportNotePlaceholder}
         rows={3}
         style={{
           width: '100%', border: '1px solid var(--border)', borderRadius: 10,
@@ -163,6 +167,7 @@ export function QuestionFeedbackModal({ submit, onClose, onSubmitted }: {
   onClose: () => void
   onSubmitted: () => void
 }) {
+  const t = useT()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -174,14 +179,14 @@ export function QuestionFeedbackModal({ submit, onClose, onSubmitted }: {
       await submit(text.trim())
       onSubmitted()
     } catch (e: unknown) {
-      const { alreadySent, message } = describeError(e)
+      const { alreadySent, message } = describeError(e, t)
       if (alreadySent) onSubmitted()
       else setError(message)
     } finally { setBusy(false) }
   }
 
   return (
-    <ModalShell title="Savol xato tuzilgan" onClose={onClose}>
+    <ModalShell title={t.questionIssueTitleShort} onClose={onClose}>
       <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         Qaysi savol qanday xato deb hisoblaysiz? Ma&apos;muriyat AI natijasini
         qayta ko&apos;rib chiqadi.
@@ -190,7 +195,7 @@ export function QuestionFeedbackModal({ submit, onClose, onSubmitted }: {
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={busy}
-        placeholder='Masalan: "1-savol xato tuzilgan, to‘g‘ri javob True bo‘ladi"'
+        placeholder={t.questionIssuePlaceholderWeb}
         rows={5}
         autoFocus
         style={{
@@ -221,13 +226,14 @@ function ModalActions({ busy, onClose, onSubmit, submitLabel }: {
   onSubmit: () => void
   submitLabel: string
 }) {
+  const t = useT()
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <button
         onClick={onClose} disabled={busy}
         className="btn btn-ghost"
         style={{ borderRadius: 10, fontWeight: 700, flex: '1 1 100px' }}
-      >Bekor qilish</button>
+      >{t.cancel}</button>
       <button
         onClick={onSubmit} disabled={busy}
         className="btn btn-primary"

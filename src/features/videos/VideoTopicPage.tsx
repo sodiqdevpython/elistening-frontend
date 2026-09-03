@@ -114,7 +114,7 @@ export default function VideoTopicPage() {
           <div style={{
             padding: '24px 0', textAlign: 'center',
             fontSize: 12, color: 'var(--text-secondary)',
-          }}>Ro'yxat oxiri</div>
+          }}>{t.listEnd}</div>
         )}
       </div>
     </>

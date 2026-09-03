@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from '@/components/Layout'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/store/auth'
+import AdModal from '@/components/AdModal'
 
 // Route darajasida code splitting.
 const HomePage = lazy(() => import('@/features/home/HomePage'))
@@ -26,6 +27,9 @@ export default function App() {
 
   return (
     <Suspense fallback={<Spinner />}>
+      {/* Ochilishda chiqadigan reklama — mobil ilovadagi bilan bir xil
+          model va uslub (`components/AdModal.tsx`). Sessiyada bir marta. */}
+      <AdModal />
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />

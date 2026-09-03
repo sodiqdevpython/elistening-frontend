@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/Layout'
 import { ErrorState, Spinner } from '@/components/ui'
 import { useAuth } from '@/store/auth'
 import AuthGateModal from '@/components/AuthGateModal'
+import { useLang, useT } from '@/i18n'
+import { fill } from '@/utils/format'
 
 // IELTS Listening test sahifasi.
 // - `data.html` — parser tayyorlagan standalone HTML (audio + savollar)
@@ -17,6 +19,8 @@ import AuthGateModal from '@/components/AuthGateModal'
 //   tugmasi bir xil `postMessage({type:'ielts:submit', answers})` yuboradi
 // - Kirmagan foydalanuvchi umuman kira olmaydi (AuthGateModal → /auth)
 export default function IeltsTestPage() {
+  const t = useT()
+  const { lang } = useLang()
   const { slug = '' } = useParams<{ slug: string }>()
   const isLoggedIn = useAuth((s) => s.isLoggedIn)
   const authLoading = useAuth((s) => s.loading)
@@ -25,6 +29,9 @@ export default function IeltsTestPage() {
   const [result, setResult] = useState<IeltsSubmitResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string>('')
+  // Foydalanuvchi "Qaytadan topshirish" bosgan bo'lsa — oldingi natija ekrani
+  // yashiriladi va test (iframe) yangidan ko'rsatiladi.
+  const [retaking, setRetaking] = useState(false)
 
   // Auth-gate: kirmagan foydalanuvchi modal ko'radi, undan yopib /auth ga o'tadi.
   const [gateOpen, setGateOpen] = useState(false)
@@ -45,7 +52,13 @@ export default function IeltsTestPage() {
     async function onMsg(e: MessageEvent) {
       const payload = e.data
       if (!payload || typeof payload !== 'object') return
-      if (payload.type !== 'ielts:submit') return
+      // Sahifa yuklandi — joriy tilni darrov yuboramiz (iframe ota sahifadan
+    // oldin ham yuklanishi mumkin, shu bois u o'zi ham so'raydi).
+    if (payload.type === 'ielts:ready') {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'ielts:lang', lang }, '*')
+      return
+    }
+    if (payload.type !== 'ielts:submit') return
       const answers = payload.answers
       if (!answers || typeof answers !== 'object') return
       if (!isLoggedIn) {
@@ -64,7 +77,7 @@ export default function IeltsTestPage() {
         // Natija ko'rinishi uchun yuqoriga surash
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } catch (err) {
-        setSubmitError('Tekshirishda xato. Qayta urinib ko‘ring.')
+        setSubmitError(t.ieltsSubmitError)
         console.error(err)
       } finally {
         setSubmitting(false)
@@ -72,7 +85,19 @@ export default function IeltsTestPage() {
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [slug, isLoggedIn])
+  }, [slug, isLoggedIn, lang])
+
+  /**
+   * Til o'zgarganda iframe ichidagi matnlarni ham almashtiramiz.
+   *
+   * Test sahifasi BAZADA saqlanadi (`IeltsListeningTest.html`), ya'ni uni
+   * til uchun qayta yasab bo'lmaydi. Shu bois sahifaning o'zida ikkala til
+   * turadi va biz faqat qaysi biri ekanini aytamiz
+   * (`backend/apps/catalog/ielts_parser.py` → `applyLang`).
+   */
+  useEffect(() => {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'ielts:lang', lang }, '*')
+  }, [lang, data])
 
   // Yuqoridagi "Tugatish" tugmasi — iframe'ga xabar jo'natadi, u o'z ichida
   // barcha javoblarni yig'ib bizga qaytaradi.
@@ -80,12 +105,28 @@ export default function IeltsTestPage() {
     iframeRef.current?.contentWindow?.postMessage({ type: 'ielts:request-submit' }, '*')
   }
 
-  const percent = useMemo(() => {
-    if (!result || !result.total) return 0
-    return Math.round((result.score / result.total) * 100)
-  }, [result])
+  // Ko'rsatiladigan natija: yangi topshiriq (`result`) yoki qaytilganda saqlangan
+  // oldingi natija (`data.my_result`). Qaytadan topshirilayotgan bo'lsa — yo'q.
+  const prevResult = !result && !retaking ? (data?.my_result ?? null) : null
+  const certData = result ?? prevResult
+  // Faqat OLDINGI natija ekrani bo'lsa iframe (test) yashiriladi — bu yakuniy
+  // "sertifikat" ekrani. Yangi topshiriqdan keyin iframe qoladi (javoblarni
+  // ko'rib chiqish uchun ranglanadi).
+  const showIframe = !prevResult
 
-  const band = useMemo(() => bandFromScore(result?.score ?? 0), [result?.score])
+  const percent = useMemo(() => {
+    if (!certData || !certData.total) return 0
+    return Math.round((certData.score / certData.total) * 100)
+  }, [certData])
+
+  const band = useMemo(() => bandFromScore(certData?.score ?? 0), [certData?.score])
+
+  const retake = () => {
+    setResult(null)
+    setRetaking(true)
+    if (iframeRef.current && data) iframeRef.current.srcdoc = data.html
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   // Auth-gate modal — kirmagan foydalanuvchiga sahifa ko'rinmaydi.
   if (!authLoading && !isLoggedIn) {
@@ -108,7 +149,7 @@ export default function IeltsTestPage() {
                 color: '#fff', border: 'none', padding: '12px 28px',
                 borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer',
               }}
-            >Akkauntga kirish</button>
+            >{t.loginCta}</button>
           </div>
         </div>
         <AuthGateModal
@@ -123,18 +164,18 @@ export default function IeltsTestPage() {
   return (
     <>
       <PageHeader />
-      <div className="page" style={{ maxWidth: 1500 }}>
+      <div className="page" style={{ maxWidth: 1800, paddingLeft: 12, paddingRight: 12 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap',
         }}>
           <Link to="/ielts-tests" style={{
             color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 14,
-          }}>← IELTS testlar</Link>
+          }}>{t.backToIeltsList}</Link>
           {data?.title && (
             <div style={{ fontSize: 20, fontWeight: 800, flex: 1, minWidth: 200 }}>{data.title}</div>
           )}
-          {/* Yuqoridagi "Tugatish" tugmasi — istalgan payt bosish mumkin */}
-          {data && !result && (
+          {/* Yuqoridagi "Tugatish" tugmasi — faqat test yechilayotganda */}
+          {data && !certData && (
             <button
               onClick={askIframeToSubmit}
               disabled={submitting}
@@ -145,52 +186,24 @@ export default function IeltsTestPage() {
                 boxShadow: '0 4px 12px rgba(16,185,129,.25)',
                 opacity: submitting ? 0.7 : 1,
               }}
-            >{submitting ? 'Tekshirilmoqda…' : '✓ Tugatish va tekshirish'}</button>
+            >{submitting ? 'Tekshirilmoqda…' : t.ieltsFinishAndCheck}</button>
           )}
         </div>
 
         {isLoading && <Spinner />}
         {isError && <ErrorState onRetry={() => refetch()} />}
 
-        {result && (
-          <div className="card" style={{
-            padding: 20, marginBottom: 16,
-            background: 'linear-gradient(135deg, rgba(37,99,235,.08), rgba(124,58,237,.08))',
-            borderColor: '#2563EB33',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '.04em' }}>
-                  NATIJA
-                </div>
-                <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1, marginTop: 4 }}>
-                  {result.score} / {result.total}
-                </div>
-                <div style={{ marginTop: 6, color: 'var(--text-secondary)', fontSize: 14 }}>
-                  {percent}% · Band ≈ <b style={{ color: 'var(--text)' }}>{band}</b>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button
-                  onClick={() => {
-                    setResult(null)
-                    if (iframeRef.current && data) {
-                      iframeRef.current.srcdoc = data.html
-                    }
-                  }}
-                  style={{
-                    padding: '10px 16px', borderRadius: 8, border: '1px solid var(--border)',
-                    background: 'transparent', color: 'var(--text)', cursor: 'pointer',
-                    fontWeight: 700,
-                  }}
-                >↻ Qayta topshirish</button>
-                <Link to="/ielts-tests" style={{
-                  padding: '10px 16px', borderRadius: 8,
-                  background: '#2563EB', color: '#fff', textDecoration: 'none', fontWeight: 700,
-                }}>Boshqa test</Link>
-              </div>
-            </div>
-          </div>
+        {certData && (
+          <Certificate
+            title={data?.title || 'IELTS Listening'}
+            score={certData.score}
+            total={certData.total}
+            percent={percent}
+            band={band}
+            isPrevious={Boolean(prevResult)}
+            t={t}
+            onRetake={retake}
+          />
         )}
 
         {submitError && (
@@ -202,7 +215,7 @@ export default function IeltsTestPage() {
           </div>
         )}
 
-        {data && (
+        {data && showIframe && (
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <iframe
               ref={iframeRef}
@@ -212,7 +225,7 @@ export default function IeltsTestPage() {
               // Kattaroq container — mavjud viewport'ning ko'p qismini oladi.
               // Navbar (~56px) + page padding (~24px) + toolbar (~60px) = ~140px.
               style={{
-                width: '100%', height: 'calc(100vh - 150px)', minHeight: 720,
+                width: '100%', height: 'calc(100vh - 118px)', minHeight: 860,
                 border: 0, display: 'block', background: '#f5f6f8',
               }}
               allow="autoplay; encrypted-media"
@@ -221,6 +234,96 @@ export default function IeltsTestPage() {
         )}
       </div>
     </>
+  )
+}
+
+/**
+ * Sertifikat uslubidagi natija kartasi — ball halqasi (SVG progress ring),
+ * band bali, foiz va harakat tugmalari. `isPrevious` bo'lsa "oxirgi natijangiz"
+ * (qaytganda), aks holda yangi topshiriq yakuni.
+ */
+function Certificate({
+  title, score, total, percent, band, isPrevious, t, onRetake,
+}: {
+  title: string
+  score: number
+  total: number
+  percent: number
+  band: string
+  isPrevious: boolean
+  t: ReturnType<typeof useT>
+  onRetake: () => void
+}) {
+  const R = 52
+  const C = 2 * Math.PI * R
+  const dash = C * Math.min(1, Math.max(0, percent / 100))
+  return (
+    <div className="card" style={{
+      padding: 28, marginBottom: 16, position: 'relative', overflow: 'hidden',
+      background: 'linear-gradient(135deg, rgba(37,99,235,.10), rgba(124,58,237,.10))',
+      border: '1px solid #7C3AED33',
+      display: 'flex', gap: 26, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center',
+    }}>
+      {/* Ball halqasi */}
+      <div style={{ position: 'relative', width: 128, height: 128, flexShrink: 0 }}>
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          <circle cx="64" cy="64" r={R} fill="none" stroke="var(--border)" strokeWidth="10" />
+          <circle
+            cx="64" cy="64" r={R} fill="none" stroke="url(#ieltsGrad)" strokeWidth="10"
+            strokeLinecap="round" strokeDasharray={`${dash} ${C}`}
+            transform="rotate(-90 64 64)"
+          />
+          <defs>
+            <linearGradient id="ieltsGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#2563EB" /><stop offset="1" stopColor="#7C3AED" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1 }}>{score}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>/ {total}</div>
+        </div>
+      </div>
+
+      {/* Matn + band + tugmalar */}
+      <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.08em', color: '#7C3AED' }}>
+          {isPrevious ? t.ieltsPrevResultTitle.toUpperCase() : t.ieltsCongrats.toUpperCase()}
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, lineHeight: 1.2 }}>
+          {isPrevious ? title : t.ieltsResultTitle}
+        </div>
+        <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 14 }}>
+          {fill(t.ieltsCorrectOf, { score, total })} · {percent}%
+        </div>
+        <div style={{
+          display: 'inline-flex', alignItems: 'baseline', gap: 6, marginTop: 12,
+          background: 'var(--bg)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '8px 16px',
+        }}>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>{t.bandLabel}</span>
+          <span style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)' }}>{band}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <button
+            onClick={onRetake}
+            style={{
+              padding: '11px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
+              fontWeight: 800, fontSize: 14, fontFamily: 'inherit',
+            }}
+          >↻ {t.ieltsRetake}</button>
+          <Link to="/ielts-tests" style={{
+            padding: '11px 20px', borderRadius: 10, textDecoration: 'none',
+            border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)',
+            fontWeight: 700, fontSize: 14,
+          }}>{t.backToIeltsList}</Link>
+        </div>
+      </div>
+    </div>
   )
 }
 

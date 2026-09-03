@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useT } from '@/i18n'
 
 /**
  * Vertikal "termometr" — Shorts rail'iga (like/dislike tugmalari yonida)
@@ -24,10 +25,6 @@ interface Props {
   questions: ThermometerMark[]
   getCurrentSec: () => number
   localStorageKey: string
-  /** Onboarding ipuchi ochiq turganda checkbox'ni yashil halqa bilan
-   *  ajratib ko'rsatadi — foydalanuvchi ipuchi qaysi tugma haqida
-   *  ekanligini darrov ko'radi. `utils/onboarding.ts` boshqaradi. */
-  spotlight?: boolean
 }
 
 /** Kichik SVG icon — vertikal 3 ta ustun (savol pozitsiyalari metaforasi). */
@@ -49,8 +46,8 @@ function parseSec(m: ThermometerMark): number {
 
 export default function QuestionPositionThermometer({
   totalSec, questions, getCurrentSec, localStorageKey,
-  spotlight = false,
 }: Props) {
+  const t = useT()
   const [enabled, setEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem(localStorageKey) === '1' } catch { return false }
   })
@@ -96,11 +93,9 @@ export default function QuestionPositionThermometer({
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
     }}>
-      {/* Checkbox — kichik, faqat icon o'lchamda. Onboarding ipuchi ochiq
-          bo'lsa (`spotlight`) yashil halqa bilan ajraladi; ipuchi yopilgach
-          halqa ham yo'qoladi va tugma jimgina turadi. */}
+      {/* Checkbox — kichik, faqat icon o'lchamda. O'rgatishni endi
+          `components/CoachTour.tsx` bajaradi (spotlight o'sha yerda). */}
       <label
-        className={spotlight ? 'onb-spotlight' : undefined}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
           padding: '3px 6px', borderRadius: 999,
@@ -110,7 +105,7 @@ export default function QuestionPositionThermometer({
           userSelect: 'none',
           transition: 'background .2s, color .2s',
         }}
-        title="Savol pozitsiyasi — video davomiyligini ko'rsatadi va har savol qaysi soniyada ekanligini rang bilan belgilaydi. Yoqish uchun bosing."
+        title={t.qposToggleTitle}
       >
         <input type="checkbox" checked={enabled} onChange={toggle}
           style={{ cursor: 'pointer', accentColor: '#10B981', width: 12, height: 12, margin: 0 }} />

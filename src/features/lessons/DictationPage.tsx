@@ -13,7 +13,7 @@ import type {
 import { PageHeader } from '@/components/Layout'
 import YouTubePlayer, { type YouTubePlayerHandle } from '@/components/YouTubePlayer'
 import QuestionPositionBar from '@/components/QuestionPositionBar'
-import OnboardingHint, { HintArtPositions, HintArtProof } from '@/components/OnboardingHint'
+import CoachTour, { firstVisible, type TourStep } from '@/components/CoachTour'
 import { QuestionFeedbackModal, ReportModal } from '@/components/FeedbackModals'
 import AuthGateModal from '@/components/AuthGateModal'
 import {
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui'
 import { useAuth } from '@/store/auth'
 import { useT } from '@/i18n'
-import { HINT, useOnboardingHint } from '@/utils/onboarding'
+import { TOUR, useTour } from '@/utils/onboarding'
 import { displayLetter, shuffleOptions } from '@/utils/shuffle'
 import { gradeDictation, type DictationResult } from '@/utils/grade'
 
@@ -633,6 +633,12 @@ export default function DictationPage() {
   // Like/dislike — Shorts bilan bir xil mexanizm (server HAR USER 1 marta).
   const [reaction, setReaction] = useState<'like' | 'dislike' | null>(null)
   const [reactionCounts, setReactionCounts] = useState<{ likes: number; dislikes: number }>({ likes: 0, dislikes: 0 })
+  // Kunlik limitga yetildimi — kontent OCHILGANDA tekshiriladi (mobil ilova
+  // bilan bir xil xulq: `app/video/[id].tsx`). `registerDictationView` limit
+  // "chelagi"ga IDEMPOTENT sanaydi — bugun allaqachon ko'rilgan kontentni
+  // qayta ochsa `limited:false` (limit to'lgan bo'lsa ham), YANGI kontent
+  // bo'lsa `limited:true`. Limit bo'lsa player o'rniga ogohlantiruvchi blok.
+  const [limited, setLimited] = useState(false)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dictation', slug],
@@ -644,6 +650,20 @@ export default function DictationPage() {
     staleTime: 10 * 60_000,
     gcTime: 15 * 60_000,
   })
+
+  // Kontent ochilganda bir marta: `views`++ va kunlik limit tekshiruvi.
+  // (Ilgari view faqat "Boshlash"/"Imtihon" bosilganda yozilardi; endi mobil
+  // bilan bir xil — ochilganda. Limit to'lgan bo'lsa `restart`/`setTestMode`
+  // ga umuman yetib bo'lmaydi, chunki player+StartCard bloklanadi.)
+  const viewedSlugRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!data || !isLoggedIn) return
+    const key = String(data.slug ?? slug)
+    if (viewedSlugRef.current === key) return
+    viewedSlugRef.current = key
+    void registerDictationView(data.slug ?? slug, data.is_media ? 'video' : 'dictation')
+      .then((r) => setLimited(r.limited))
+  }, [data, isLoggedIn, slug])
 
   // Whisper body'sini rejimga qarab qayta guruhlaymiz:
   //   1. `mergeIntoSentences` — HAR DOIM: gap chegaralari (`.`/`!`/`?`) bo'yicha
@@ -778,11 +798,37 @@ export default function DictationPage() {
   //
   // Ikkinchisi birinchisi yopilmagunicha kutadi — bir vaqtda ikkita kartochka
   // chiqib ekranni to'ldirib qo'ymasin.
-  const positionsHint = useOnboardingHint(HINT.testPositions, testMode, 2000)
-  const [proofSeen, setProofSeen] = useState(false)
-  const proofHint = useOnboardingHint(
-    HINT.testProof, testMode && proofSeen && !positionsHint.open, 900,
-  )
+  // Test rejimida videoni O'ZIMIZNING start tugmamiz boshlaydi.
+  const [testStarted, setTestStarted] = useState(false)
+
+  /**
+   * O'RGATISH (`utils/onboarding.ts`): ro'yxatdan o'tgach **1 hafta**
+   * davomida, **kuniga bir marta**. Uzun videoda ekranda uch narsa bor va
+   * ular birinchi qarashda tushunarsiz: chapdagi player, o'ngdagi savollar
+   * paneli va video ostidagi savol-pozitsiya bari.
+   */
+  const tour = useTour(TOUR.video, testMode, 1200)
+
+  const tourSteps: TourStep[] = useMemo(() => [
+    {
+      anchor: () => firstVisible('[data-tour="video-start"]', '.test-layout-video'),
+      title: t.tourVideoStartTitle,
+      text: t.tourVideoStartText,
+      side: 'right',
+    },
+    {
+      anchor: () => firstVisible('.test-layout-panel'),
+      title: t.tourVideoQTitle,
+      text: t.tourVideoQText,
+      side: 'left',
+    },
+    {
+      anchor: () => firstVisible('[data-tour="qpos-bar"]'),
+      title: t.tourVideoPosTitle,
+      text: t.tourVideoPosText,
+      side: 'top',
+    },
+  ], [t])
 
   const solved = Object.values(results).filter((r) => r.isCorrect).length
   const percent = chunks.length ? Math.round((solved / chunks.length) * 100) : 0
@@ -1020,11 +1066,11 @@ export default function DictationPage() {
             />
           </div>
           {!testMode && (<>
-            <button onClick={restart} title="Boshidan boshlash" style={{
+            <button onClick={restart} title={t.restartTitle} style={{
               fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
               background: 'var(--bg-secondary)', color: 'var(--text)',
               border: '1px solid var(--border)', cursor: 'pointer',
-            }}>↻ Boshidan</button>
+            }}>↻ {t.restart}</button>
             <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
               {solved} / {chunks.length}
             </span>
@@ -1106,14 +1152,14 @@ export default function DictationPage() {
           <div className="card" style={{ padding: 'clamp(16px,3vw,24px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <button onClick={() => goTo(index - 1)} disabled={index === 0}
-                aria-label="prev" style={navBtn}>
+                aria-label={t.prevAria} style={navBtn}>
                 <ChevronIcon dir="left" color="var(--text-secondary)" size={18} />
               </button>
               <span style={{ fontSize: 14, fontWeight: 700, minWidth: 56, textAlign: 'center' }}>
                 {index + 1} / {chunks.length}
               </span>
               <button onClick={() => goTo(index + 1)} disabled={index >= chunks.length - 1}
-                aria-label="next" style={navBtn}>
+                aria-label={t.nextAria} style={navBtn}>
                 <ChevronIcon dir="right" color="var(--text)" size={18} />
               </button>
 
@@ -1121,7 +1167,7 @@ export default function DictationPage() {
 
               <select value={settings.playbackRate}
                 onChange={(e) => setSettings((s) => ({ ...s, playbackRate: Number(e.target.value) }))}
-                aria-label="Ijro tezligi"
+                aria-label={t.playbackRateAria}
                 style={{
                   border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px',
                   background: 'var(--bg-secondary)', color: 'var(--text)',
@@ -1131,7 +1177,36 @@ export default function DictationPage() {
               </select>
             </div>
 
-            {hasAudio ? (
+            {limited ? (
+              /* Kunlik limit — player o'rniga ogohlantirish (mobil bilan bir xil).
+                 Kontent umuman ko'rsatilmaydi: player, poster va StartCard ham
+                 chizilmaydi. */
+              <div style={{
+                marginBottom: 12, padding: '22px 20px', textAlign: 'center',
+                background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                borderRadius: 14, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 10,
+              }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: 16,
+                  background: 'linear-gradient(135deg,#F59E0B 0%,#EF4444 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                    stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>{t.limitTitle}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 340, lineHeight: 1.5 }}>
+                  {t.limitResets}
+                </div>
+                <Link to="/profile/billing" className="btn btn-primary"
+                  style={{ textDecoration: 'none', padding: '10px 18px', borderRadius: 10, fontSize: 14, fontWeight: 800 }}>
+                  {t.limitUpgrade}
+                </Link>
+              </div>
+            ) : hasAudio ? (
               <audio ref={audioRef} src={data.audio_url!} controls preload="metadata"
                 style={{ width: '100%', marginBottom: 6 }} />
             ) : hasYouTube ? (
@@ -1151,7 +1226,7 @@ export default function DictationPage() {
                 {started && (
                   <div style={{
                     fontSize: 11, color: 'var(--text-secondary)', marginTop: 6,
-                  }}>YouTube playeri — chunk vaqtida avtomatik to'xtaydi</div>
+                  }}>{t.playerHint}</div>
                 )}
               </div>
             ) : (
@@ -1159,10 +1234,10 @@ export default function DictationPage() {
                 fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12,
                 padding: '10px 14px', background: 'var(--bg-secondary)',
                 border: '1px solid var(--border)', borderRadius: 10,
-              }}>Audio yoki video biriktirilmagan.</div>
+              }}>{t.noMediaAttached}</div>
             )}
 
-            {!started && !testMode && (
+            {!started && !testMode && !limited && (
               <StartCard
                 title={data.title}
                 chunksCount={chunks.length}
@@ -1175,13 +1250,12 @@ export default function DictationPage() {
                 )}
                 onStart={() => {
                   if (!isLoggedIn) { setAuthGate('Diktantni boshlash'); return }
-                  // Har boshlash — bitta ko'rish (n marta boshlasa n marta).
-                  void registerDictationView(slug).catch(() => {})
+                  // View + limit tekshiruvi kontent OCHILGANDA bo'ldi (yuqoridagi
+                  // effekt). Limit to'lgan bo'lsa bu StartCard umuman ko'rinmaydi.
                   restart()
                 }}
                 onTest={() => {
                   if (!isLoggedIn) { setAuthGate('Imtihonni boshlash'); return }
-                  void registerDictationView(slug).catch(() => {})
                   setTestMode(true)
                 }}
               />
@@ -1247,13 +1321,13 @@ export default function DictationPage() {
                 </button>
               ) : (
                 <button className="btn btn-ghost" onClick={skipChunk}
-                  title="Kanonik javobni ko'rsatib keyingi chunk'ga o'tadi">
+                  title={t.showCanonical}>
                   {t.skipBtn}
                 </button>
               )}
               {!settings.showAnswerImmediately && !showFull && result && !result.isCorrect && (
                 <button className="btn btn-ghost" onClick={() => setShowFull(true)}
-                  aria-label="Javobni ko'rsatish">Javobni ko'rsatish</button>
+                  aria-label={t.showAnswer}>{t.showAnswer}</button>
               )}
             </div>
 
@@ -1277,12 +1351,12 @@ export default function DictationPage() {
               <Checkbox
                 checked={settings.showAnswerImmediately}
                 onChange={(v) => setSettings((s) => ({ ...s, showAnswerImmediately: v }))}
-                label="Xato bo'lsa javobni darrov ko'rsat"
+                label={t.revealOnError}
               />
               <Checkbox
                 checked={settings.showFullAnswer}
                 onChange={(v) => setSettings((s) => ({ ...s, showFullAnswer: v }))}
-                label="Har doim to'liq javobni ko'rsat"
+                label={t.revealAlways}
               />
             </div>
 
@@ -1325,23 +1399,50 @@ export default function DictationPage() {
                   <audio ref={audioRef} src={data.audio_url!} controls preload="metadata"
                     style={{ width: '100%', display: 'block' }} />
                 ) : hasYouTube ? (
-                  <YouTubePlayer ref={ytRef} youtubeId={youtubeId} nativeControls />
+                  <>
+                    <YouTubePlayer ref={ytRef} youtubeId={youtubeId} nativeControls />
+                    {/* O'Z start tugmamiz. Ilgari test rejimida video o'zi
+                        boshlanmasdi va foydalanuvchi YouTube iframe'ini bir
+                        marta bosishga MAJBUR edi (foydalanuvchi shikoyati).
+                        Bosilgach yo'qoladi. */}
+                    {!testStarted && (
+                      <button
+                        data-tour="video-start"
+                        onClick={() => { setTestStarted(true); ytRef.current?.play?.() }}
+                        style={{
+                          position: 'absolute', inset: 0, zIndex: 2,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          gap: 10, border: 'none', cursor: 'pointer',
+                          background: 'rgba(8,12,20,.45)', color: '#fff',
+                          fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
+                        }}
+                      >
+                        <span style={{
+                          width: 54, height: 54, borderRadius: '50%',
+                          background: '#10B981', display: 'inline-flex',
+                          alignItems: 'center', justifyContent: 'center',
+                          boxShadow: '0 8px 24px rgba(16,185,129,.45)',
+                        }}><IconPlay /></span>
+                        {t.tourVideoStartTitle}
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <div style={{
                     aspectRatio: '16/9', display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     color: '#FFF', fontSize: 13,
-                  }}>Audio/video biriktirilmagan</div>
+                  }}>{t.noMediaShort}</div>
                 )}
               </div>
               {/* Savol pozitsiyasi bari — default o'chiq (localStorage).
                   Raqamlar TestView bilan bir xil ketma-ketlikda: avval MCQ,
                   keyin TFNG, keyin fill-gap. Onboarding ipuchi ochiq bo'lsa
                   checkbox yashil halqa bilan ajraladi. */}
+              <div data-tour="qpos-bar">
               <QuestionPositionBar
                 totalSec={data.duration_sec}
                 localStorageKey="listening.test.qpos"
-                spotlight={positionsHint.open}
                 getCurrentSec={() => (
                   audioRef.current
                     ? audioRef.current.currentTime
@@ -1349,6 +1450,7 @@ export default function DictationPage() {
                 )}
                 questions={positionMarks}
               />
+              </div>
             </div>
 
             {/* O'ng ustun: SCROLLABLE savollar paneli. `max-height` +
@@ -1361,7 +1463,6 @@ export default function DictationPage() {
                 fill={data.fill_gap_questions ?? []}
                 onExit={() => setTestMode(false)}
                 onSeek={seekTo}
-                onProofVisible={() => setProofSeen(true)}
                 onCompleted={() => awardCompletion('test')}
                 onReport={() => setReportOpen(true)}
                 onQuestionFeedback={() => setQuestionFbOpen(true)}
@@ -1380,23 +1481,7 @@ export default function DictationPage() {
           </div>
         )}
 
-        {positionsHint.open && (
-          <OnboardingHint
-            title="Qayerga kelganingiz shu yerda"
-            text="Belgini yoqsangiz, video davomida qaysi savolga yaqinlashayotganingiz ko'rinib turadi."
-            art={<HintArtPositions />}
-            placement="bottom-center"
-            onClose={positionsHint.dismiss}
-          />
-        )}
-        {proofHint.open && (
-          <OnboardingHint
-            title="Javob qayerda aytilgan?"
-            text="«Isbot» bosing — video javob eshitiladigan joyga, 2 soniya oldinroqdan qo'yiladi."
-            art={<HintArtProof />}
-            onClose={proofHint.dismiss}
-          />
-        )}
+        {tour.open && <CoachTour steps={tourSteps} onDone={tour.finish} />}
 
         {reportOpen && (
           <ReportModal
@@ -1537,6 +1622,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
   onStart: () => void
   onTest?: () => void
 }) {
+  const t = useT()
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -1572,7 +1658,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
                 <circle cx="16" cy="17" r="2.2" fill="currentColor" stroke="none" />
               </svg>
             </span>
-            <span className="modechoice-title">Imtihon</span>
+            <span className="modechoice-title">{t.examMode}</span>
             <span className="modechoice-desc">
               Videoni ko'rib savollarga javob bering
             </span>
@@ -1585,7 +1671,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
                 <path d="M14 4l6 6-9 9H5v-6l9-9z" />
               </svg>
             </span>
-            <span className="modechoice-title">Diktant</span>
+            <span className="modechoice-title">{t.dictationMode}</span>
             <span className="modechoice-desc">
               Har gapni tinglab yozib chiqing · {chunksCount} ta gap
             </span>
@@ -1604,7 +1690,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
               fontSize: 16, padding: '15px 28px', borderRadius: 13,
               fontWeight: 800, cursor: 'pointer',
             }}
-          ><IconPlay />Diktantni boshlash</button>
+          ><IconPlay />{t.startDictation}</button>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             Tayyor bo'lganda bosing — audio darrov boshlanadi.
           </div>
@@ -1620,6 +1706,7 @@ function ChunkModePicker({ mode, minWords, onChangeMode, onChangeMinWords }: {
   onChangeMode: (mode: ChunkMode) => void
   onChangeMinWords: (n: number) => void
 }) {
+  const t = useT()
   const description = mode === 'sentence'
     ? 'Har chunk = to\'liq gap. Faqat nuqta / undov / so\'roq belgisida bo\'linadi. '
       + 'Uzun bo\'lsa ham so\'zlar chegarada kesilmaydi — ishonchli variant.'
@@ -1632,7 +1719,7 @@ function ChunkModePicker({ mode, minWords, onChangeMode, onChangeMinWords }: {
         display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
         fontSize: 13, fontWeight: 700, color: 'var(--text)',
       }}>
-        <span>Bo'lish rejimi:</span>
+        <span>{t.splitModeLabel}</span>
         <select
           value={mode}
           onChange={(e) => onChangeMode(e.target.value as ChunkMode)}
@@ -1642,8 +1729,8 @@ function ChunkModePicker({ mode, minWords, onChangeMode, onChangeMinWords }: {
             color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
           }}
         >
-          <option value="sentence">Nuqtagacha (default)</option>
-          <option value="clause">Tinish belgisigacha</option>
+          <option value="sentence">{t.splitBySentence}</option>
+          <option value="clause">{t.splitByPunct}</option>
         </select>
 
         {mode === 'clause' && (
@@ -1669,7 +1756,7 @@ function ChunkModePicker({ mode, minWords, onChangeMode, onChangeMinWords }: {
                 background: 'var(--bg-secondary)', color: 'var(--text)',
                 fontSize: 13, fontWeight: 700, textAlign: 'center',
               }}
-              aria-label="Minimal so'z soni"
+              aria-label={t.minWordsAria}
             />
             so'z
           </label>
@@ -1870,6 +1957,7 @@ function TestView({
   mcq, tfng, fill, onExit, onSeek, onProofVisible, onCompleted,
   onReport, onQuestionFeedback, reported, questionReported,
 }: TestViewProps) {
+  const t = useT()
   const [settings, setSettings] = useState<TestSettings>(loadTestSettings)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   // `instant` rejimida javob QACHON ochilishi:
@@ -2053,7 +2141,7 @@ function TestView({
               width: '100%', padding: `${fs(12)}px ${fs(18)}px`, borderRadius: 12,
               fontSize: fs(14.5), fontWeight: 800, cursor: answered ? 'pointer' : 'not-allowed',
             }}
-          >Natijani tekshirish</button>
+          >{t.checkResult}</button>
           <div style={{
             fontSize: fs(11.5), fontWeight: 600, color: 'var(--text-secondary)',
             textAlign: 'center',
@@ -2086,6 +2174,7 @@ function TestToolbar({
   questionReported: boolean
   locked: boolean
 }) {
+  const t = useT()
   const pct = total ? Math.round((answered / total) * 100) : 0
   return (
     <div style={{
@@ -2095,7 +2184,7 @@ function TestToolbar({
       background: 'var(--bg)', border: '1px solid var(--border)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: fs(15), fontWeight: 800 }}>Listening test</h3>
+        <h3 style={{ margin: 0, fontSize: fs(15), fontWeight: 800 }}>{t.listeningTestLabel}</h3>
         <span style={{
           fontSize: fs(12), fontWeight: 700, color: 'var(--text-secondary)',
         }}>{answered} / {total}</span>
@@ -2107,7 +2196,7 @@ function TestToolbar({
             }} />
           </div>
         </div>
-        <IconButton title="Diktantga qaytish" onClick={onExit} label="Diktant">
+        <IconButton title={t.backToDictation} onClick={onExit} label={t.dictationMode}>
           <IconBack />
         </IconButton>
       </div>
@@ -2129,12 +2218,12 @@ function TestToolbar({
         {/* Matn o'lchami — butun panelga ta'sir qiladi. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <FontButton
-            label="A−" title="Matnni kichiklashtirish"
+            label="A−" title={t.textSmaller}
             disabled={settings.fontStep <= 0}
             onClick={() => onSettings((s) => ({ ...s, fontStep: Math.max(0, s.fontStep - 1) }))}
           />
           <FontButton
-            label="A+" title="Matnni kattalashtirish"
+            label="A+" title={t.textBigger}
             disabled={settings.fontStep >= FONT_STEPS.length - 1}
             onClick={() => onSettings((s) => ({
               ...s, fontStep: Math.min(FONT_STEPS.length - 1, s.fontStep + 1),
@@ -2395,6 +2484,7 @@ function FillSentence({ q, given, reveal, locked, onAnswer, fs }: {
   onAnswer: (v: string, commit?: boolean) => void
   fs: (n: number) => number
 }) {
+  const t = useT()
   const parts = (q.sentence || '').split('___')
   const correct = fillAnswers(q).includes(normAnswer(given))
 
@@ -2427,7 +2517,7 @@ function FillSentence({ q, given, reveal, locked, onAnswer, fs }: {
                   }
                 }}
                 placeholder="…"
-                aria-label="Javob"
+                aria-label={t.answerAria}
                 style={{
                   width: fs(130), margin: `0 ${fs(4)}px`,
                   padding: `${fs(2)}px ${fs(8)}px`,
@@ -2491,6 +2581,7 @@ function ProofRow({ correct, expected, quote, hasProof, onProof, fs }: {
   onProof: () => void
   fs: (n: number) => number
 }) {
+  const t = useT()
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', gap: fs(9), flexWrap: 'wrap',
@@ -2529,7 +2620,7 @@ function ProofRow({ correct, expected, quote, hasProof, onProof, fs }: {
             padding: `${fs(4)}px ${fs(11)}px`, fontSize: fs(11.5),
             fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
           }}
-        ><IconPlay />Isbot</button>
+        ><IconPlay />{t.proofLabel}</button>
       )}
     </div>
   )
@@ -2545,6 +2636,7 @@ function ResultCard({ score, total, wrong, onJump, onReset, fs }: {
   onReset: () => void
   fs: (n: number) => number
 }) {
+  const t = useT()
   const pct = total ? Math.round((score / total) * 100) : 0
   return (
     <div style={{
@@ -2577,7 +2669,7 @@ function ResultCard({ score, total, wrong, onJump, onReset, fs }: {
             borderRadius: 10, fontWeight: 800, fontSize: fs(12.5),
             padding: `${fs(8)}px ${fs(14)}px`,
           }}
-        >Qayta ishlash</button>
+        >{t.reprocess}</button>
       </div>
       {wrong.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: fs(8), flexWrap: 'wrap' }}>

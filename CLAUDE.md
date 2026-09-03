@@ -460,11 +460,39 @@ test sahifasi uchun umumiy**. API funksiyalari prop orqali beriladi
 ham ishlaydi. 409 (allaqachon yuborilgan) xato emas — "yuborilgan" deb
 hisoblanadi.
 
-### `components/OnboardingHint.tsx`
+### `components/CoachTour.tsx` — o'q bilan o'rgatish
 
-Kichik "coach mark" kartochkasi + chizmalar (`HintArtPositions`,
-`HintArtProof`). Fon qorayimaydi, `Esc` / tashqariga bosish / "Tushunarli"
-bilan yopiladi. Qachon ko'rsatilishini `utils/onboarding.ts` hal qiladi.
+Eski `OnboardingHint.tsx` (fon qorayimaydigan kichik kartochka) **olib
+tashlandi**. Foydalanuvchi aniq so'radi: *"o'qlar bilan ko'rsatish arrow
+bilan, modal da uni maqsadini yozish"* — ya'ni asosiy yuk matnda emas,
+**ko'rsatishda**.
+
+`CoachTour` bir nechta qadamni ketma-ket yuritadi. Har qadam:
+
+- **spotlight** — element atrofi yoritiladi, qolgan ekran qorayadi
+  (bitta `box-shadow: 0 0 0 9999px` bilan, alohida maska yo'q)
+- **o'q** — CSS uchburchak, elementga qaragan tomondan
+- **kartochka** — sarlavha + 1-2 qator maqsad, "Tashlab ketish", `n/N`,
+  "Keyingi" / "Tushunarli". `Esc` — chiqish, `Enter` — keyingisi.
+
+Uchta nozik joy (uchalasi ham jonli sahifada o'lchab tuzatilgan):
+
+1. **`document.body` ga PORTAL.** Shorts lentasidagi `.shorts-slot` da
+   `contain: layout paint` bor — u `position:fixed` uchun yangi
+   "containing block" yasaydi va overlay ekran emas, SLOT koordinatalarida
+   chiziladi (o'lchandi: butun qatlam **109 px** pastga surilgan, kartochka
+   esa ekran ostiga chiqib ketgan). Portal buni butunlay hal qiladi —
+   `Backdrop` ni oddiy `div` ga qaytarmang.
+2. **`firstVisible(...selectors)`** — bir vazifadagi tugma desktop va
+   mobil tartibda BOSHQA element bo'ladi (Shorts'da savollar dastagi
+   mobilda tugma, desktopda `display:none` — panel doim yonda), qolaversa
+   lentada har slot o'z rail'ini chizadi. Shu bois selektorlar ro'yxati
+   beriladi va **o'lchami nolga teng** hamda **ekrandan tashqaridagi**
+   elementlar tashlab ketiladi. Faol slot `.shorts-slot.playing` klassi
+   bilan belgilanadi.
+3. **Kartochka ekrandan chiqmaydi** — yon tomonda turganda `clampTop`
+   (`CARD_H = 210`) uni ichkariga qaytaradi; so'ralgan tomonda joy
+   bo'lmasa `pickSide` teskarisiga o'tkazadi.
 
 ### `utils/grade.ts`
 
@@ -592,37 +620,74 @@ bo'yicha saralanadi, lekin **raqam o'zgarmaydi**.
   audio/video pozitsiyasi bo'yicha to'ladi.
 - **Faqat yoqilganda** poll boshlanadi (checkbox off → hech qanday timer).
 
-**Onboarding — `utils/onboarding.ts` + `components/OnboardingHint.tsx`:**
-Ilgari bu yerda `qposHint` CSS pulsi bor edi (har shorts slotda qayta yonib
-o'chardi). U olib tashlandi — takrorlanardi va nima uchun yonayotgani
-tushunarsiz edi. O'rniga **bir martalik kichik ipuchi kartochkasi**:
+**Default holat farq qiladi:**
 
-| Qoida | Qiymat |
-|---|---|
-| Kimga | `date_joined` dan **2 kundan kam** bo'lgan foydalanuvchiga |
-| Anonim mehmon | `localStorage.listening.onboarding.first_visit` dan hisoblanadi |
-| Necha marta | Har ipuchi **umrida 1 marta** (`listening.onboarding.seen.<key>`) |
-| Fon | Qorayimaydi — video ijro davom etadi, ish to'xtamaydi |
-
-`useOnboardingHint(key, ready, delayMs)` — `ready` bo'lgach `delayMs` kutib
-ochadi; profil yuklanmagunicha (`auth.loading`) hech narsa ko'rsatmaydi.
-
-Kalitlar (`HINT`):
-
-| Kalit | Qayerda | Nima o'rgatadi |
+| Qayerda | Default | Nega |
 |---|---|---|
-| `shorts-positions` | Shorts, **birinchi** slot ijro boshlagach | termometr checkbox'i |
-| `test-positions` | Listening test rejimiga kirilganda | pozitsiya bari checkbox'i |
-| `test-proof` | "Isbot" tugmasi birinchi marta ko'ringanda | isbot videoni surishi |
-
-Ipuchi ochiq turganda tegishli checkbox `.onb-spotlight` klass'ini oladi
-(yashil halqa) — `spotlight` prop orqali, ikkala komponentda ham.
+| **Uzun video / listening test** (`QuestionPositionBar`) | **YOQIQ** | Foydalanuvchi talabi: *"video larda savol joyi doim yoniq tursin"*. Kalit `'0'` bo'lsagina o'chadi (ya'ni faqat qo'lda o'chirilgani saqlanadi). |
+| **Shorts** (`QuestionPositionThermometer`) | o'chiq (opt-in) | Ekran tor, termometr xalaqit beradi |
 
 **Icon** — 12×12 SVG (`IconPositions`) ikonasi (3 ta ko'tarilgan vertikal
 ustun, `currentColor`). Emoji ishlatilmagan.
 
 **Diqqat:** Shorts termometri faqat `playing` slot uchun mount qilinadi —
 scroll paytida boshqa slotlar poll qilmaydi (RAM tejashish).
+
+## O'rgatish (onboarding) siyosati — `utils/onboarding.ts`
+
+Foydalanuvchi qat'iy belgilab berdi; o'zboshimchalik bilan o'zgartirmang.
+**Mobil ilova ham AYNAN shu jadval bo'yicha ishlaydi**
+(`../mobile/src/utils/onboarding.ts`) — birini o'zgartirsangiz ikkinchisini
+ham.
+
+| Tur | Kimga | Oyna | Necha marta | Qayerda |
+|---|---|---|---|---|
+| `TOUR.shorts` | kirgan foydalanuvchi | `date_joined` dan **3 kun** | lentaga **har kirganda** (sessiyada 1 marta) | `ShortsPage` |
+| `TOUR.video` | kirgan foydalanuvchi | **1 hafta** | **kuniga bir marta** | `DictationPage` (test rejimi) |
+
+Qo'shimcha qoidalar:
+
+- **Mehmonga umuman ko'rsatilmaydi** (`if (!isLoggedIn) return`). Ilgari
+  `first_visit` bilan mehmon ham "yangi" hisoblanardi — endi yo'q.
+- Oyna o'tgach **hech narsa** ko'rsatilmaydi: *"undan keyin umuman
+  o'rgatish kerak emas"*.
+- **Darrov emas** — *"kirganda birdan o'rgatish emas, ozgina video
+  qo'yiladi va to'xtatiladi, keyin o'rgatilish boshlanadi, xuddi
+  o'yinlardagidek"*. Buni `ready` bayrog'i + `delayMs` bajaradi: Shorts
+  birinchi slot IJRO BOSHLAGANDAN 2.5 s keyin, video esa test rejimiga
+  kirgandan 1.2 s keyin. Tur ochilganda player **to'xtatiladi**, yopilganda
+  yana **davom etadi**.
+- Har turda **"Tashlab ketish"**.
+
+Holat: Shorts — `sessionStorage` (`listening.tour.session.shorts`), video —
+`localStorage` kun kaliti (`listening.tour.day.video`). Bu qulaylik, xavfsizlik
+masalasi emas.
+
+Qadamlar (matnlar `i18n/strings.ts` → `tour*`):
+
+| Tur | 1 | 2 | 3 |
+|---|---|---|---|
+| Shorts | savollar (panel / dastak) | pastga surish — keyingi video | savol pozitsiyasi tugmasi |
+| Video | **Boshlash** tugmasi | savollar paneli va Darrov/Imtihon | savol pozitsiyasi bari |
+
+### Video ustidagi "Boshlash" tugmasi (`data-tour="video-start"`)
+
+Shikoyat: *"istalgan video ga kiraman va imtihon ni bosaman ... youtube
+playerni 1 marotaba bosishga majburman"*. Endi test rejimida player ustida
+o'z **overlay tugmamiz** turadi: bosilganda `ytRef.play()` chaqiriladi va
+overlay yo'qoladi. Tur ham aynan shu tugmadan boshlanadi, ya'ni yangi
+foydalanuvchi nima bosishini ko'radi.
+
+## Profilda kunlik limit (`features/profile/LimitsCard.tsx`)
+
+*"web da limitlar ko'rinmayabdi profile da ko'rinsin"* — `GET /me/limits/`
+dan bugungi sarf: Shorts / Video / Diktant uchun progress bar (`2/8`
+ko'rinishida), tarif nomi va `/profile/billing` ga havola. `PlanHistoryCard`
+ustida turadi.
+
+**Kafolatsiz taxminlar yo'q.** *"Estimated — based on listening time typical
+for your level"* kabi yozuvlar olib tashlandi: raqam faqat serverdagi haqiqiy
+hisobdan chiqadi.
 
 ## Profil — rasm va username (`features/profile/ProfilePage.tsx`)
 
@@ -657,8 +722,8 @@ ikki karta:
 **Sessiyalar.** Qoida serverda: bir vaqtda 1 brauzer + 1 telefon, oxirgi
 kirgan yutadi (`../backend/CLAUDE.md` → "Sessiyalar"). Karta yangi ruxsat
 bermaydi — faqat ko'rsatadi va uzib qo'yish imkonini beradi. Chiqarilgan
-qurilma DARROV 401 oladi. Mobil ilovada aynan shu API ishlatiladi
-(`mobile/src/components/SessionsSection.tsx`).
+qurilma DARROV 401 oladi. **Bu ekran faqat saytda** — mobil ilovada qurilma
+ro'yxati ataylab yo'q (qoida serverda o'zi ishlaydi, ilovada ortiqcha edi).
 
 `signOut()` endi `POST /api/auth/logout/` ni ham chaqiradi (javobni
 KUTMAYDI) — aks holda serverdagi sessiya qatori qolib, ro'yxatda ko'rinib
@@ -683,6 +748,30 @@ funksiya qo'shsangiz `i18n/index.tsx` da tip xatosi chiqadi. O'rin
 almashtiruvchi matnlar `{n}` / `{plan}` ko'rinishida yoziladi va
 `utils/format.ts::fill(template, values)` bilan to'ldiriladi.
 
+## Kontent o'rami — `enc` bloki
+
+Transkript va savollar serverdan **o'ralgan** holda keladi: javobdagi
+`enc` satri ochilib, natija obyektning o'ziga qo'shiladi. Bu **markazda**
+bajariladi, shu bois komponentlar va endpointlar hech narsani bilmaydi:
+
+| Joy | Qayerda ochiladi |
+|---|---|
+| Sayt | `api/client.ts` — axios javob interceptor'i |
+| Mobil | `api/client.ts` — `request()` ning oxiri |
+
+Algoritm: `utils/protect.ts` (RC4 kalit oqimi + XOR + base64).
+
+> **Bu shifrlash EMAS, obfuskatsiya.** Parol shu bundle ichida — qat'iy
+> qaror qilgan odam uni topib hammasini ocha oladi. Maqsad boshqa:
+> `curl .../api/shorts/` deb JSON'ni olib, transkript va savollarni tayyor
+> holda ko'chirib ketishni ma'nosiz qilish.
+
+**Parol UCHALA joyda bir xil bo'lishi SHART** — backend `CONTENT_SECRET`,
+sayt `VITE_CONTENT_SECRET`, mobil `EXPO_PUBLIC_CONTENT_SECRET` (default
+`sodiq2005.py`). Algoritmni o'zgartirsangiz uchalasini birga o'zgartiring;
+`backend/apps/common/tests_protect.py::VectorTests` mos kelmasligini ushlaydi.
+Batafsil: `../backend/CLAUDE.md` → "Kontent o'rami".
+
 ## Tariflar sahifasi (`features/billing/BillingPage.tsx`)
 
 **`/profile/billing`** — bugungi sarf (`GET /me/limits/`) + tariflar ro'yxati
@@ -697,9 +786,72 @@ ilova limitga yetilganda faqat "qaysi tarifdasiz + ertaga yangilanadi" deydi,
 Sahifa manzilini o'zgartirsangiz botdagi matnni ham yangilang — ikkalasi
 bog'langan.
 
-## Auth (`features/auth/AuthPage.tsx`)
+## i18n — ekranda QATTIQ YOZILGAN matn qolmasin
 
-Telegram OTP kirish — 6 xonali kod maydonlari. O'zgarmagan.
+Sayt uz/en da to'liq ishlashi kerak. Aralash holat (inglizcha interfeys
+ichida o'zbekcha tugma) foydalanuvchi shikoyati bo'lgan, shu bois:
+
+**Qoida:** foydalanuvchi ko'radigan har qanday matn `t.*` dan kelsin —
+JSX matni ham, `title` / `aria-label` / `placeholder` / `label` / `alt` ham.
+
+**Tekshirish usuli.** "O'zbekchami?" deb qidirish YETARLI EMAS — u
+`title="Yoqmadi"` kabilarni o'tkazib yuboradi. To'g'ri mezon: **ko'rinadigan
+joyda satr literali turibdimi?** (`t.*` doim `{...}` ichida bo'ladi).
+Shu mezon bilan 70 ta joy topildi va tuzatildi; qolgani — tip
+annotatsiyalari (`Promise<...>`) va brend/klaviatura yorliqlari (`Ctrl`,
+`A+`, `Not given`).
+
+Yordamchi komponentda `t` bo'lmasa `const t = useT()` qo'shing (18 ta
+komponentga shunday qo'shildi).
+
+## IELTS test sahifasi ichidagi til (`features/ielts/IeltsTestPage.tsx`)
+
+Test sahifasi — iframe `srcDoc`, HTML esa **bazada saqlanadi**
+(`IeltsListeningTest.html`), ya'ni uni til uchun qayta yasab bo'lmaydi.
+Shu bois sahifaning O'ZIDA ikkala til turadi (`I18N` obyekti +
+`data-i18n` belgilari), sayt esa faqat qaysi biri ekanini aytadi:
+
+```
+iframe yuklandi  →  postMessage({type:'ielts:ready'})
+sayt              →  postMessage({type:'ielts:lang', lang})
+sahifa            →  applyLang(lang)
+```
+
+Til o'zgarganda ham qayta yuboriladi. Server tomoni:
+`../backend/apps/catalog/ielts_parser.py`.
+
+> Sahifa BAZADA qotib qolgani uchun, shablonga yangi matn qo'shsangiz eski
+> testlarga yetib bormaydi — `manage.py rebuild_ielts_html --apply --all`
+> ni ishlating.
+
+**Konteyner keng:** `maxWidth: 1800`, iframe balandligi
+`calc(100vh - 118px)` (min 860) — test topshirishda tor bo'lmasin.
+
+## Ochilishdagi reklama (`components/AdModal.tsx`)
+
+Backend `AppAd` — **mobil ilova bilan BITTA model**. Modal uslubi ham bir
+xil: rasm/gif + sarlavha + matn (havolalar bosiladi) + CTA + X
+(avto-yopilish hisoblagichi bilan).
+
+Yagona farq — RASM: `image_web_url` (sayt uchun keng) va `image_url`
+(mobil uchun tik). Sayt rasmi bo'sh bo'lsa server o'zi mobil rasmni
+qaytaradi, ya'ni admin bitta rasm bersa ham ishlaydi.
+
+Sessiyada bir marta (`sessionStorage` → `listening.ad.seen`) — sahifadan
+sahifaga o'tganda qayta chiqmaydi. `Esc` yoki fon bosilsa yopiladi.
+
+## Auth (`features/auth/AuthPage.tsx`) — uch qadam
+
+`step: 'otp' | 'lang' | 'setup'`.
+
+1. **OTP** — 6 xonali kod (botdan). Javobda `needs_setup: true` bo'lsa...
+2. **Til** — *"eng oldin til so'rasin"*: ikkita katta tugma
+   (O'zbekcha / English). Tanlov darrov qo'llanadi, ya'ni keyingi qadam
+   allaqachon o'sha tilda chiqadi.
+3. **Profil** — ism (majburiy), **username** (ixtiyoriy, 400 ms debounce
+   bilan bandligi tekshiriladi), **rasm** (ixtiyoriy — *"rasm esa ixtiyoriy
+   qo'ymasa ham bo'ladi"*, `setupProfile` dan keyin `updateAvatar` bilan
+   yuboriladi), CEFR daraja.
 
 ## Papka tuzilishi
 
@@ -714,7 +866,7 @@ src/
   theme/       ThemeProvider.tsx
   utils/       grade.ts (client-side dictation grader), format.ts,
                youtube.ts (IFrame API loader),
-               onboarding.ts (2 kunlik ipuchi oynasi, bir martalik ko'rsatish)
+               onboarding.ts (o'rgatish oynalari: shorts 3 kun / video 1 hafta)
 ```
 
 ## O'chirilgan sahifalar

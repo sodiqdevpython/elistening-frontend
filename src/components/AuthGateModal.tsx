@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { HeadphoneIcon } from './ui'
+import { useT } from '@/i18n'
 
 /**
  * Akkauntga kirishni talab qiluvchi modal — foydalanuvchi tizimga kirmasdan
@@ -19,6 +20,7 @@ export default function AuthGateModal({ open, onClose, action }: {
   /** Ixtiyoriy: "... uchun akkauntingizga kiring" — nima ish bloklangani. */
   action?: string
 }) {
+  const t = useT()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -47,7 +49,7 @@ export default function AuthGateModal({ open, onClose, action }: {
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
       }}>
         <button
-          onClick={onClose} aria-label="Yopish"
+          onClick={onClose} aria-label={t.close}
           style={{
             position: 'absolute', top: 12, right: 12,
             width: 30, height: 30, borderRadius: '50%',
@@ -85,7 +87,7 @@ export default function AuthGateModal({ open, onClose, action }: {
             width: '100%', textDecoration: 'none', padding: '12px 18px',
             borderRadius: 12, fontSize: 15, fontWeight: 800,
           }}
-        >Akkauntga kirish</Link>
+        >{t.loginCta}</Link>
         <button
           onClick={onClose}
           style={{
@@ -93,7 +95,7 @@ export default function AuthGateModal({ open, onClose, action }: {
             color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600,
             fontFamily: 'inherit', padding: '4px 8px',
           }}
-        >Hozircha kerak emas</button>
+        >{t.notNow}</button>
       </div>
     </div>
   )

@@ -451,3 +451,20 @@ export interface SubscriptionHistory {
   } | null
   results: SubscriptionEventRow[]
 }
+
+
+/**
+ * `GET /api/app-ad/` — ochilishda chiqadigan reklama (backend `AppAd`).
+ *
+ * Ikkita rasm: `image_web_url` sayt uchun (keng), `image_url` mobil uchun
+ * (tik). Sayt rasmi bo'sh bo'lsa server o'zi mobil rasmni qaytaradi.
+ */
+export interface AppAd {
+  id: number
+  image_url: string
+  image_web_url: string
+  title: string
+  body: string
+  link_url: string
+  duration_sec: number
+}

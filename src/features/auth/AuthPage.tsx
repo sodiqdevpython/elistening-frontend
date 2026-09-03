@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { setupProfile, verifyOtp } from '@/api/endpoints'
+import { checkUsername, setupProfile, updateAvatar, verifyOtp } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
 import { PageHeader } from '@/components/Layout'
 import { HeadphoneIcon } from '@/components/ui'
@@ -23,10 +23,23 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const { signIn, setUser } = useAuth()
 
-  const [step, setStep] = useState<'otp' | 'setup'>('otp')
+  /**
+   * Uch qadam: kod → TIL → profil.
+   *
+   * Til ENG BIRINCHI so'raladi (foydalanuvchi talabi): keyingi ekranlar
+   * allaqachon tanlangan tilda ochiladi, ya'ni odam o'zi tushunadigan
+   * tilda ism/daraja kiritadi. Ilgari til ism bilan daraja orasida edi.
+   */
+  const [step, setStep] = useState<'otp' | 'lang' | 'setup'>('otp')
   const [digits, setDigits] = useState(['', '', '', '', '', ''])
   const [name, setName] = useState('')
   const [level, setLevel] = useState('B1')
+  // Username va rasm — IXTIYORIY (bo'sh qoldirsa ham ro'yxatdan o'tadi).
+  const [username, setUsername] = useState('')
+  const [unameState, setUnameState] = useState<'idle' | 'checking' | 'free' | 'taken'>('idle')
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState('')
+  const fileRef = useRef<HTMLInputElement | null>(null)
   // Interfeys tili — ro'yxatdan o'tishda tanlanadi va profilga saqlanadi.
   // Default: hozir sahifa qaysi tilda ochilgan bo'lsa o'sha.
   const [uiLang, setUiLang] = useState<'uz' | 'en'>(lang)
@@ -43,7 +56,7 @@ export default function AuthPage() {
       if (result.needs_setup) {
         setName(result.user.display_name || '')
         setLevel(result.user.cefr_level || 'B1')
-        setStep('setup')
+        setStep('lang')
       } else {
         navigate('/profile')
       }
@@ -87,17 +100,45 @@ export default function AuthPage() {
   const pickLang = (next: 'uz' | 'en') => {
     setUiLang(next)
     // Darrov almashtiramiz — foydalanuvchi tanlovi natijasini shu zahoti
-    // ko'radi (ekran matnlari o'zgaradi).
+    // ko'radi (keyingi ekran allaqachon shu tilda ochiladi).
     setLang(next)
+    setStep('setup')
+  }
+
+  /** Username bandligini 400 ms debounce bilan tekshiramiz. */
+  useEffect(() => {
+    const value = username.trim()
+    if (step !== 'setup' || !value) { setUnameState('idle'); return }
+    setUnameState('checking')
+    let alive = true
+    const id = window.setTimeout(() => {
+      checkUsername(value)
+        .then((r) => { if (alive) setUnameState(r.available ? 'free' : 'taken') })
+        .catch(() => { if (alive) setUnameState('idle') })
+    }, 400)
+    return () => { alive = false; window.clearTimeout(id) }
+  }, [username, step])
+
+  const pickPhoto = (file: File | undefined) => {
+    if (!file) return
+    setPhoto(file)
+    setPhotoPreview(URL.createObjectURL(file))
   }
 
   const save = async () => {
     if (!name.trim()) return
     setBusy(true)
     try {
-      setUser(await setupProfile({
+      let me = await setupProfile({
         display_name: name.trim(), cefr_level: level, language: uiLang,
-      }))
+        ...(username.trim() ? { username: username.trim() } : {}),
+      })
+      // Rasm IXTIYORIY — tanlangan bo'lsa profil saqlangandan keyin
+      // yuklanadi. Yuklanmasa ham ro'yxatdan o'tish buzilmaydi.
+      if (photo) {
+        try { me = await updateAvatar(photo) } catch { /* rasmsiz davom etamiz */ }
+      }
+      setUser(me)
       navigate('/')
     } catch (err) {
       setError(errorMessage(err, t.error))
@@ -185,6 +226,31 @@ export default function AuthPage() {
             </>
           )}
 
+          {step === 'lang' && (
+            <>
+              <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 10px' }}>
+                {t.authLangStepTitle}
+              </h1>
+              <p style={{
+                fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 28px',
+              }}>{t.authLangStepDesc}</p>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {([['uz', "O'zbekcha"], ['en', 'English']] as const).map(([code, label]) => (
+                  <button key={code} onClick={() => pickLang(code)}
+                    aria-pressed={uiLang === code}
+                    style={{
+                      border: `1.5px solid ${uiLang === code ? '#10B981' : 'var(--border)'}`,
+                      background: uiLang === code ? 'var(--ok-bg)' : 'transparent',
+                      color: uiLang === code ? '#059669' : 'var(--text)',
+                      borderRadius: 12, padding: '16px 0',
+                      fontSize: 16, fontWeight: 800, cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}>{label}</button>
+                ))}
+              </div>
+            </>
+          )}
+
           {step === 'setup' && (
             <>
               <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 10px' }}>
@@ -196,27 +262,50 @@ export default function AuthPage() {
               <input className="field" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder={t.authNamePlaceholder} aria-label={t.authNamePlaceholder}
                 style={{ marginBottom: 18 }} />
-              {/* Interfeys tili — faqat ikkita variant. Tanlangani darrov
-                  qo'llanadi va profilga saqlanadi. */}
+              {/* Username — IXTIYORIY. Band bo'lsa saqlash tugmasi o'chadi. */}
+              <input className="field" value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 32))}
+                placeholder={t.authUsernameLabel} aria-label={t.authUsernameLabel} />
               <div style={{
-                textAlign: 'left', fontSize: 13, fontWeight: 700,
-                color: 'var(--text-secondary)', marginBottom: 8,
-              }}>{t.authLanguageLabel}</div>
-              <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20,
+                fontSize: 12, fontWeight: 600, minHeight: 18, textAlign: 'left',
+                margin: '5px 0 14px',
+                color: unameState === 'taken' ? '#EF4444'
+                  : unameState === 'free' ? '#059669' : 'var(--text-secondary)',
               }}>
-                {([['uz', "O'zbekcha"], ['en', 'English']] as const).map(([code, label]) => (
-                  <button key={code} onClick={() => pickLang(code)}
-                    aria-pressed={uiLang === code}
-                    style={{
-                      border: `1.5px solid ${uiLang === code ? '#10B981' : 'var(--border)'}`,
-                      background: uiLang === code ? 'var(--ok-bg)' : 'transparent',
-                      color: uiLang === code ? '#059669' : 'var(--text)',
-                      borderRadius: 10, padding: '11px 0',
-                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}>{label}</button>
-                ))}
+                {unameState === 'checking' && '…'}
+                {unameState === 'free' && t.usernameFree}
+                {unameState === 'taken' && t.usernameTaken}
+              </div>
+
+              {/* Rasm — IXTIYORIY, qo'ymasa ham bo'ladi. */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+              }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                  overflow: 'hidden', background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {photoPreview
+                    ? <img src={photoPreview} alt="" width={52} height={52}
+                        style={{ width: 52, height: 52, objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 20, color: 'var(--text-secondary)' }}>⊕</span>}
+                </div>
+                <button className="btn btn-ghost" type="button"
+                  onClick={() => fileRef.current?.click()}
+                  style={{ padding: '9px 16px', fontSize: 13, borderRadius: 10 }}>
+                  {t.authPhotoPick}
+                </button>
+                {!!photo && (
+                  <button className="btn btn-ghost" type="button"
+                    onClick={() => { setPhoto(null); setPhotoPreview('') }}
+                    style={{ padding: '9px 14px', fontSize: 13, borderRadius: 10 }}>
+                    {t.authPhotoRemove}
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" hidden
+                  onChange={(e) => { pickPhoto(e.target.files?.[0]); e.target.value = '' }} />
               </div>
 
               <div style={{
@@ -243,7 +332,7 @@ export default function AuthPage() {
                 }}>{error}</div>
               )}
               <button className="btn btn-primary" style={{ width: '100%' }}
-                onClick={save} disabled={busy || !name.trim()}>
+                onClick={save} disabled={busy || !name.trim() || unameState === 'taken' || unameState === 'checking'}>
                 {busy ? '…' : t.authSaveBtn}
               </button>
             </>

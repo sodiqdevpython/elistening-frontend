@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
  * savolning `proof_from_text` sekundini nuqta bilan ko'rsatadi. Player ijro
  * etilayotgan joyi joriy savolni yorqin qilib ajratadi.
  *
- * Default o'chiq. Tanlov `localStorage` da saqlanadi — sahifa yoki Short
+ * Default YOQIQ (uzun video). Tanlov `localStorage` da saqlanadi — sahifa yoki Short
  * almashsa ham xotirada qoladi. `localStorageKey` orqali har turdagi sahifa
  * o'z tanlovini alohida yoki umumiy tutishi mumkin (Shorts va Dictation
  * o'zaro alohida).
@@ -32,10 +32,6 @@ interface Props {
   localStorageKey: string
   /** Checkbox yorlig'i. */
   label?: string
-  /** Onboarding ipuchi ochiq turganda checkbox'ni yashil halqa bilan
-   *  ajratib ko'rsatadi — kartochka qaysi tugma haqida ekani darrov
-   *  ko'rinadi (`utils/onboarding.ts`). */
-  spotlight?: boolean
 }
 
 function parseSec(mark: QuestionMark): number {
@@ -47,10 +43,17 @@ function parseSec(mark: QuestionMark): number {
 export default function QuestionPositionBar({
   totalSec, questions, getCurrentSec, localStorageKey,
   label = "Savol pozitsiyalarini ko'rsatish",
-  spotlight = false,
 }: Props) {
+  /**
+   * **UZUN videolarda default YOQIQ** (foydalanuvchi talabi: "video larda
+   * savol joyi doim yoniq tursin"). Shorts'da esa opt-in bo'lib qoladi —
+   * u yerda ekran tor va termometr xalaqit beradi
+   * (`QuestionPositionThermometer` o'z default'ini saqlaydi).
+   *
+   * Foydalanuvchi ataylab o'chirsa (`'0'`) hurmat qilinadi.
+   */
   const [enabled, setEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem(localStorageKey) === '1' } catch { return false }
+    try { return localStorage.getItem(localStorageKey) !== '0' } catch { return true }
   })
   const toggle = () => {
     setEnabled((prev) => {
@@ -93,7 +96,6 @@ export default function QuestionPositionBar({
   return (
     <div>
       <label
-        className={spotlight ? 'onb-spotlight' : undefined}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           padding: '3px 8px', borderRadius: 999,

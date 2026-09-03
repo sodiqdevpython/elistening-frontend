@@ -13,14 +13,15 @@ import type {
 } from '@/api/types'
 import ShortsPlayer, { type ShortsPlayerHandle } from '@/components/ShortsPlayer'
 import QuestionPositionThermometer from '@/components/QuestionPositionThermometer'
-import OnboardingHint, { HintArtPositions } from '@/components/OnboardingHint'
+import CoachTour, { firstVisible, type TourStep } from '@/components/CoachTour'
 import { QuestionFeedbackModal, ReportModal } from '@/components/FeedbackModals'
 import { ErrorState, Spinner } from '@/components/ui'
 import AuthGateModal from '@/components/AuthGateModal'
 import { useAuth } from '@/store/auth'
-import { HINT, useOnboardingHint } from '@/utils/onboarding'
+import { TOUR, useTour } from '@/utils/onboarding'
 import { shortPoster } from '@/utils/youtube'
 import { shuffleOptions } from '@/utils/shuffle'
+import { useT } from '@/i18n'
 
 /* ============================================================
  * Konstantalar
@@ -141,19 +142,6 @@ function markSeen(id: number) {
   } catch { /* noop */ }
 }
 
-/** Video ko'rila boshlaganda: ko'rilganlar ro'yxatiga qo'shadi (seen) va
- *  serverdagi `views` ni oshiradi.
- *
- *  MUHIM: har KO'RISH hisoblanadi — foydalanuvchi videoni n marta ko'rsa
- *  (masalan orqaga qaytib qayta ko'rsa) n marta yoziladi (sessiya dedup'i
- *  olib tashlangan — foydalanuvchi shuni so'radi). `settle()` faqat scroll
- *  to'xtab, slot HAQIQATAN faol bo'lganda chaqiradi, shu bois arzimas
- *  jitterda hisoblanmaydi. */
-function trackView(id: number) {
-  markSeen(id)
-  void registerShortView(id).catch(() => { /* offline — statistika, muhim emas */ })
-}
-
 function loadMuted(): boolean {
   try { return localStorage.getItem(MUTE_KEY) === '1' } catch { return false }
 }
@@ -226,6 +214,7 @@ interface PageParam {
 }
 
 export default function ShortsPage() {
+  const t = useT()
   const { user } = useAuth()
   const isLoggedIn = Boolean(user)
 
@@ -421,6 +410,18 @@ export default function ShortsPage() {
   // shu yo'nalishda tanlanadi — natijada iframe soni 2 ta bo'lib qoladi
   // (RAM), lekin ikkala tomonga ham silliq o'tiladi.
   const [dir, setDir] = useState<1 | -1>(1)
+  // Kunlik shorts limitiga yetildimi — faol slotning `view` chaqiruvi 403
+  // qaytarsa `true` bo'ladi. Ijroni to'xtatadi (`playing && !limitHit`); global
+  // LimitGate modali interceptor orqali allaqachon ochilgan. Oldin ko'rilgan
+  // shortga qaytilsa `consume` idempotent — `false` ga qaytadi.
+  const [limitHit, setLimitHit] = useState(false)
+
+  /** Slot faol bo'lganda: "ko'rilgan" deb belgilaydi, `views`++ va limit tekshiruvi.
+   *  Har KO'RISH hisoblanadi (dedup yo'q — foydalanuvchi shuni so'radi). */
+  const trackView = useCallback((id: number) => {
+    markSeen(id)
+    void registerShortView(id).then(({ limited }) => setLimitHit(limited))
+  }, [])
 
   const currentIndex = useCallback(() => {
     const root = scrollRef.current
@@ -505,7 +506,7 @@ export default function ShortsPage() {
       if (rafId) cancelAnimationFrame(rafId)
       window.clearTimeout(settleId)
     }
-  }, [currentIndex, hasItems, routeBase])
+  }, [currentIndex, hasItems, routeBase, trackView])
 
   // Birinchi element yuklangach uni "ko'rilgan" deb belgilaymiz.
   const firstMarkedRef = useRef(false)
@@ -513,7 +514,7 @@ export default function ShortsPage() {
     if (firstMarkedRef.current || !items.length) return
     firstMarkedRef.current = true
     trackView(items[0].short.id)
-  }, [items])
+  }, [items, trackView])
 
   /* ---------- Konteyner balandligi → --slot-h ---------- */
 
@@ -689,7 +690,7 @@ export default function ShortsPage() {
         <select
           value={rangeKey}
           onChange={(e) => setRangeKey(e.target.value)}
-          aria-label="Daraja oralig'i"
+          aria-label={t.levelRangeAria}
           style={{
             background: 'var(--bg-secondary)', color: 'var(--text)',
             border: '1px solid var(--border)', borderRadius: 999,
@@ -697,7 +698,7 @@ export default function ShortsPage() {
           }}
         >
           {userRange && <option value="auto">Sizga mos ({userRange.join('–')})</option>}
-          <option value="all">Hammasi</option>
+          <option value="all">{t.allLevels}</option>
           {RANGE_OPTIONS.map((r) => <option key={r.key} value={r.key}>{r.key}</option>)}
         </select>
 
@@ -706,7 +707,7 @@ export default function ShortsPage() {
         {autoplayBlocked && muted && (
           <button
             onClick={toggleMuted}
-            title="Ovozni yoqish"
+            title={t.unmuteTitle}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               background: 'rgba(239,68,68,.12)', color: '#B91C1C',
@@ -756,7 +757,14 @@ export default function ShortsPage() {
       {visibleItems.length > 0 && (
         <div ref={scrollRef} className="shorts-scroll">
           {visibleItems.map(({ short: s, key }, i) => (
-            <div key={key} className="shorts-slot" data-idx={i}>
+            <div
+              key={key}
+              // `playing` — o'rgatish (CoachTour) selektorlari uchun ham:
+              // bir xil tugma har slotda takrorlanadi, o'q FAOL slotnikiga
+              // qadalishi kerak.
+              className={'shorts-slot' + (i === playIdx ? ' playing' : '')}
+              data-idx={i}
+            >
               {Math.abs(i - activeIdx) <= WINDOW ? (
                 <ShortSlot
                   short={s}
@@ -764,8 +772,10 @@ export default function ShortsPage() {
                   total={slotCount}
                   // Iframe faqat 2 ta: faol slot + yo'nalish bo'yicha keyingisi.
                   mounted={i === playIdx || i === playIdx + dir * PRELOAD_AHEAD}
-                  // Ijro FAQAT bittasida — ovoz shu videoniki.
-                  playing={i === playIdx}
+                  // Ijro FAQAT bittasida — ovoz shu videoniki. Kunlik limitga
+                  // yetilgan bo'lsa (`limitHit`) ijro to'xtaydi — LimitGate
+                  // modali ochilgan, video ortida jimgina o'ynamaydi.
+                  playing={i === playIdx && !limitHit}
                   muted={muted}
                   state={getState(s.id)}
                   onUpdate={updateState}
@@ -826,6 +836,7 @@ const ShortSlot = memo(function ShortSlot({
   short, index, total, mounted, playing, muted,
   state, onUpdate, onScrollTo, onAutoplayBlocked, onDead,
 }: SlotProps) {
+  const t = useT()
   const playerRef = useRef<ShortsPlayerHandle>(null)
   const lastReactRef = useRef(0)
   const { requireAuth } = useContext(ShortsAuthContext)
@@ -842,9 +853,63 @@ const ShortSlot = memo(function ShortSlot({
   // ochiladi (`playing`) — sahifa yuklanishi bilanoq ekranga chiqmaydi.
   // Ro'yxatdan o'tganiga 2 kundan oshgan foydalanuvchiga umuman chiqmaydi
   // (`utils/onboarding.ts`).
-  const positionsHint = useOnboardingHint(
-    HINT.shortsPositions, playing && index === 0, 2500,
-  )
+  /**
+   * O'RGATISH (`utils/onboarding.ts` qoidalari): ro'yxatdan o'tgach 3 kun
+   * davomida, lentaga HAR kirganda bir marta.
+   *
+   * **Darrov emas** — avval video 2.5 s o'ynaydi, keyin to'xtatiladi va
+   * o'qlar bilan ko'rsatiladi (o'yinlardagi kabi). Tugagach ijro davom etadi.
+   */
+  const tour = useTour(TOUR.shorts, playing && index === 0, 2500)
+
+  useEffect(() => {
+    if (!tour.open) return
+    playerRef.current?.pause?.()
+  }, [tour.open])
+
+  const finishTour = useCallback(() => {
+    tour.finish()
+    playerRef.current?.play?.()
+  }, [tour])
+
+  const tourSteps: TourStep[] = useMemo(() => [
+    {
+      // Mobilda — pastdagi "Savollar" dastagi (`display:none` desktopda),
+      // desktopda esa savollar panelining o'zi.
+      anchor: () => firstVisible(
+        '.shorts-slot.playing [data-tour="questions"]',
+        '[data-tour="questions"]',
+        '.shorts-slot.playing .shorts-panel',
+        '.shorts-panel',
+      ),
+      title: t.tourShortsQTitle,
+      text: t.tourShortsQText,
+      side: 'left',
+    },
+    {
+      // Yuqori/quyi navigatsiya guruhi mobilda yashirin — u holda videoning
+      // o'zini ko'rsatamiz ("pastga suring").
+      // DIQQAT: har slot o'z rail'ini chizadi, ya'ni bu selektor lentada
+      // o'nlab element topadi. Faol slotdan boshlamasak, ekrandan tashqarida
+      // qolgan slotning tugmasi tanlanib, o'q allaqachon o'tib ketgan
+      // videoni ko'rsatardi.
+      anchor: () => firstVisible(
+        '.shorts-slot.playing [data-tour="next-video"]',
+        '[data-tour="next-video"]',
+        '.shorts-slot.playing .shorts-video',
+        '.shorts-video',
+      ),
+      title: t.tourShortsNextTitle,
+      text: t.tourShortsNextText,
+      side: 'left',
+    },
+    {
+      anchor: () => firstVisible('.shorts-slot.playing [data-tour="qpos"]', '[data-tour="qpos"]'),
+      title: t.tourShortsPosTitle,
+      text: t.tourShortsPosText,
+      side: 'left',
+    },
+  ], [t])
 
   // Mobil bottom-sheet (YouTube komment uslubi) — savollar paneli pastdan
   // ochiladi. Desktop'da bu holat ishlatilmaydi (panel doim yonda). Yangi
@@ -1016,65 +1081,55 @@ const ShortSlot = memo(function ShortSlot({
             icon={<IconThumbUp filled={state.reaction === 'like'} />}
             count={likes}
             active={state.reaction === 'like'}
-            title="Yoqdi"
+            title={t.liked}
             onClick={() => applyReaction('like')}
           />
           <RailBtn
             icon={<IconThumbDown filled={state.reaction === 'dislike'} />}
             count={dislikes}
             active={state.reaction === 'dislike'}
-            title="Yoqmadi"
+            title={t.disliked}
             onClick={() => applyReaction('dislike')}
           />
           <RailBtn
             icon={<IconRefresh />}
-            label="Qayta"
+            label={t.againLabel}
             onClick={reset}
-            title="Javoblarni tozalash"
+            title={t.clearAnswers}
           />
           <RailBtn
             icon={<IconFlag />}
-            label="Shikoyat"
+            label={t.reportLabel}
             active={feedback.reported}
             onClick={() => setReportOpen(true)}
-            title={feedback.reported ? 'Shikoyat allaqachon yuborilgan' : 'Shikoyat yuborish'}
+            title={feedback.reported ? t.reportAlready : t.reportSendTitle}
           />
           <RailBtn
             icon={<IconAlert />}
-            label="Savol xato"
+            label={t.questionIssueLabel}
             active={feedback.questionReported}
             onClick={() => setQuestionFbOpen(true)}
-            title={feedback.questionReported ? 'Xabar allaqachon yuborilgan' : 'Savol xato tuzilgan deb belgilash'}
+            title={feedback.questionReported ? t.questionIssueAlready : t.questionIssueMark}
           />
         </div>
         {/* Savol pozitsiyasi termometri — like'lar va up/down orasida. Default
             o'chiq. Foydalanuvchi yoqib qo'ysa `localStorage` da qoladi va
             barcha shorts uchun ta'sir qiladi. Faqat FAOL slot vaqtini oladi. */}
         {playing && positionMarks.length > 0 && (
-          <QuestionPositionThermometer
+          <div data-tour="qpos"><QuestionPositionThermometer
             totalSec={short.duration_sec}
             localStorageKey="listening.shorts.qpos"
             questions={positionMarks}
             getCurrentSec={() => (playerRef.current?.currentTimeMs?.() ?? 0) / 1000}
-            /* Ipuchi ochiq turganda checkbox yashil halqa bilan ajraladi —
-               kartochka qaysi tugma haqida ekani darrov ko'rinadi. */
-            spotlight={positionsHint.open}
-          />
+          /></div>
         )}
-        <div className="shorts-rail-group shorts-nav-group">
-          <RailBtn icon={<IconArrow dir="up" />} onClick={goPrev} disabled={index === 0} title="Oldingi" />
-          <RailBtn icon={<IconArrow dir="down" />} onClick={goNext} disabled={index >= total - 1} title="Keyingi" />
+        <div className="shorts-rail-group shorts-nav-group" data-tour="next-video">
+          <RailBtn icon={<IconArrow dir="up" />} onClick={goPrev} disabled={index === 0} title={t.prevLabel} />
+          <RailBtn icon={<IconArrow dir="down" />} onClick={goNext} disabled={index >= total - 1} title={t.nextLabel} />
         </div>
       </div>
 
-      {positionsHint.open && (
-        <OnboardingHint
-          title="Savollar qayerda?"
-          text="Bu tugmani yoqsangiz, har savol videoning qaysi soniyasida ekani ko'rinadi va hozir qayerda turganingizni kuzatib borasiz."
-          art={<HintArtPositions vertical />}
-          onClose={positionsHint.dismiss}
-        />
-      )}
+      {tour.open && <CoachTour steps={tourSteps} onDone={finishTour} />}
 
       {reportOpen && (
         <ReportModal
@@ -1106,12 +1161,12 @@ const ShortSlot = memo(function ShortSlot({
         + (playing ? ' playing' : '')
         + (sheetOpen ? ' is-open' : '')
       }>
-        <button className="shorts-sheet-handle" type="button"
+        <button className="shorts-sheet-handle" type="button" data-tour="questions"
           onClick={() => setSheetOpen((o) => !o)}
           aria-expanded={sheetOpen}>
           <span className="shorts-sheet-grip" aria-hidden />
           <span className="shorts-sheet-title">
-            Savollar{totalAll > 0 ? ` · ${doneAll}/${totalAll}` : ''}
+            {t.questionsLabel}{totalAll > 0 ? ` · ${doneAll}/${totalAll}` : ''}
           </span>
           <span className="shorts-sheet-caret" aria-hidden>{sheetOpen ? '▾' : '▴'}</span>
         </button>
@@ -1212,6 +1267,7 @@ function QuestionsPanel({
   onNext: () => void
   hasNext: boolean
 }) {
+  const t = useT()
   const mcqTotal = short.mcq_questions.length
   const tfngTotal = short.tfng_questions.length
   const fillTotal = short.fill_gap_questions.length
@@ -1296,10 +1352,10 @@ function QuestionsPanel({
         }}>
           <button type="button" onClick={() => bumpFont(-0.1)}
             disabled={fontScale <= 0.8}
-            title="Matnni kichraytirish" style={sizeBtnStyle}>A−</button>
+            title={t.textSmaller} style={sizeBtnStyle}>A−</button>
           <button type="button" onClick={() => bumpFont(0.1)}
             disabled={fontScale >= 1.4}
-            title="Matnni kattalashtirish" style={sizeBtnStyle}>A+</button>
+            title={t.textBigger} style={sizeBtnStyle}>A+</button>
         </div>
         {(short.cefr_from || short.cefr_to) && (
           <span style={{
@@ -1314,7 +1370,7 @@ function QuestionsPanel({
           <TabBtn
             active={tab === 'mcq'} disabled={mcqTotal === 0}
             onClick={() => setTab('mcq')}
-            label="Ko'p tanlov" progress={`${mcqDone}/${mcqTotal}`}
+            label={t.mcqTab} progress={`${mcqDone}/${mcqTotal}`}
           />
           <TabBtn
             active={tab === 'tfng'} disabled={tfngTotal === 0}
@@ -1325,7 +1381,7 @@ function QuestionsPanel({
             <TabBtn
               active={tab === 'fill'} disabled={fillTotal === 0}
               onClick={() => setTab('fill')}
-              label="Bo'shliq" progress={`${fillDone}/${fillTotal}`}
+              label={t.gapTab} progress={`${fillDone}/${fillTotal}`}
             />
           )}
         </div>
@@ -1511,6 +1567,7 @@ function FillCard({ n, q, answered, reveal, onSubmit, onProof }: {
   onSubmit: (v: string) => void
   onProof: (seconds: number) => void
 }) {
+  const t = useT()
   const [value, setValue] = useState('')
   const done = answered != null
   const showResult = done && reveal
@@ -1536,7 +1593,7 @@ function FillCard({ n, q, answered, reveal, onSubmit, onProof }: {
         <span style={{
           fontSize: 10, fontWeight: 800, letterSpacing: '.06em',
           textTransform: 'uppercase', color: 'var(--text-secondary)',
-        }}>Bo'shliqni to'ldiring</span>
+        }}>{t.fillTheGap}</span>
       </div>
       <div style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.55 }}>
         {parts.map((p, i) => (
@@ -1577,7 +1634,7 @@ function FillCard({ n, q, answered, reveal, onSubmit, onProof }: {
             padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 800,
             alignSelf: 'flex-start',
           }}
-        >Tekshirish</button>
+        >{t.check}</button>
       )}
       {showResult && (
         correct ? (
@@ -1589,14 +1646,14 @@ function FillCard({ n, q, answered, reveal, onSubmit, onProof }: {
             background: 'rgba(245,158,11,.14)', color: '#B45309',
             border: '1px solid #F59E0B',
           }}>
-            <span style={{ fontSize: 12, fontWeight: 800 }}>✗ Xato</span>
+            <span style={{ fontSize: 12, fontWeight: 800 }}>✗ {t.wrongShort}</span>
             <span style={{ fontSize: 12.5, lineHeight: 1.5 }}>
               To'g'ri javob: <b>{q.answer}</b>
             </span>
             {parseProof(q.proof_from_text).seconds != null && (
               <button
                 onClick={() => onProof(parseProof(q.proof_from_text).seconds!)}
-                title="Videoni shu vaqtga surish"
+                title={t.seekVideoHere}
                 style={{
                   background: 'rgba(255,255,255,.95)', color: '#111827',
                   border: '1px solid rgba(0,0,0,.14)', borderRadius: 999,
@@ -1622,6 +1679,7 @@ function optClass(answered: boolean, isPicked: boolean, isAnswer: boolean): stri
 function ProofRow({ proof, onProof, correct }: {
   proof: string; onProof: (seconds: number) => void; correct: boolean
 }) {
+  const t = useT()
   const { seconds, quote } = useMemo(() => parseProof(proof), [proof])
   return (
     <div style={{
@@ -1640,7 +1698,7 @@ function ProofRow({ proof, onProof, correct }: {
       {seconds != null && (
         <button
           onClick={() => onProof(seconds)}
-          title="Videoni shu vaqtga surish"
+          title={t.seekVideoHere}
           style={{
             background: 'rgba(255,255,255,.95)', color: '#111827',
             border: '1px solid rgba(0,0,0,.14)', borderRadius: 999,
@@ -1654,6 +1712,7 @@ function ProofRow({ proof, onProof, correct }: {
 }
 
 function NotGivenResult({ correct }: { correct: boolean }) {
+  const t = useT()
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10,
@@ -1663,7 +1722,7 @@ function NotGivenResult({ correct }: { correct: boolean }) {
       fontSize: 12.5, fontWeight: 700, lineHeight: 1.5,
     }}>
       <span style={{ fontWeight: 800 }}>{correct ? "✓ To'g'ri" : '✗ Xato'}</span>
-      <span>To'g'ri javob — <b>Not given</b>. Matnda bu ma'lumot berilmagan.</span>
+      <span>{t.correctAnswerIs} <b>Not given</b>{t.notGivenExplain}</span>
     </div>
   )
 }

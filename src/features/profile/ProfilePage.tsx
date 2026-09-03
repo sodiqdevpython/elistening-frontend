@@ -12,6 +12,7 @@ import {
   Badge, CheckIcon, EmptyState, ErrorState, ProgressBar, Spinner,
 } from '@/components/ui'
 import { useAuth } from '@/store/auth'
+import LimitsCard from './LimitsCard'
 import PlanHistoryCard from './PlanHistoryCard'
 import SessionsCard from './SessionsCard'
 import { useLang, useT } from '@/i18n'
@@ -345,10 +346,10 @@ export default function ProfilePage() {
                     <span>{t.levelProgressText} {stats.data.next_level}</span>
                     <span>{stats.data.active_time_hours}/{stats.data.required_hours} {t.hoursUnit}</span>
                   </div>
+                  {/* "Taxminiy — darajangizga mos ..." izohi OLIB TASHLANDI:
+                      foydalanuvchi so'radi — aniq kafolat bermaydigan,
+                      taxminga asoslangan yozuvlar bo'lmasin. */}
                   <ProgressBar percent={stats.data.level_progress_percent} height={8} />
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
-                    {t.levelProgressNote}
-                  </div>
                 </div>
               </div>
 
@@ -515,6 +516,9 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Bugungi kunlik limit — mobil ilovada bor edi, saytda yo'q edi */}
+        <LimitsCard />
 
         {/* Tarif tarixi — faqat saytda ko'rinadi (mobil ilovada kerak emas) */}
         <PlanHistoryCard />

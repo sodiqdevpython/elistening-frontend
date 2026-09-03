@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { killCaptions, loadYouTubeApi } from '@/utils/youtube'
+import { useT } from '@/i18n'
 
 /**
  * YouTube IFrame wrapper.
@@ -54,6 +55,7 @@ function loadYT(): Promise<void> {
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, Props>(function YouTubePlayer(
   { youtubeId, onReady, autoplay = false, nativeControls = false }, ref,
 ) {
+  const t = useT()
   const holderRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null)
@@ -431,7 +433,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, Props>(function YouTubePla
             setVolumeState(v)
             if (v > 0 && muted) setMutedState(false)
           }}
-          aria-label="Ovoz"
+          aria-label={t.volumeAria}
           title={`Ovoz: ${muted ? 0 : volume}`}
           style={{
             width: 96, accentColor: '#10B981', cursor: 'pointer',
@@ -444,7 +446,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, Props>(function YouTubePla
           href={`https://www.youtube.com/watch?v=${youtubeId}`}
           target="_blank"
           rel="noopener noreferrer"
-          title="Asl manbani YouTube'da ochish"
+          title={t.openOnYouTube}
           style={{
             fontSize: 12, fontWeight: 700, color: '#FFF',
             textDecoration: 'none',

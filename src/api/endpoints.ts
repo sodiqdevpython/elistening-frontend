@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, isLimitError } from './client'
 import type {
   ActivityDay, Category, ContentDetail, ContentGroup, ContentItem, CursorPaginated,
   Dictation, DictationDetail, DictationProgress, DictationType,
@@ -125,10 +125,19 @@ export async function markShortDead(id: number) {
 
 /** Lentada video ko'rila boshlaganda chaqiriladi — `views` ni oshiradi.
  *  Ro'yxat endpoint'i `views` ni oshirmaydi, shu bois scroll qilib
- *  ko'rilgan videolar ham hisoblansin uchun alohida chaqiruv. */
-export async function registerShortView(id: number) {
-  const { data } = await api.post<{ views: number }>(`/shorts/${id}/view/`)
-  return data
+ *  ko'rilgan videolar ham hisoblansin uchun alohida chaqiruv.
+ *
+ *  Kunlik limitga yetilgan bo'lsa backend 403 qaytaradi (global interceptor
+ *  LimitGate modalni ochadi). Chaqiruvchi bilishi uchun `{limited}` qaytaramiz —
+ *  masalan lentani keyingi videoga surmaslik uchun. */
+export async function registerShortView(id: number): Promise<{ views?: number; limited: boolean }> {
+  try {
+    const { data } = await api.post<{ views: number }>(`/shorts/${id}/view/`)
+    return { ...data, limited: false }
+  } catch (e) {
+    if (isLimitError(e)) return { limited: true }
+    return { limited: false } // tarmoq/boshqa xato — statistika, muhim emas
+  }
 }
 
 export type ReactionValue = 'like' | 'dislike' | null
@@ -171,9 +180,21 @@ export async function reactToDictation(slug: string | number, reaction: 'like' |
   )
   return data
 }
-export async function registerDictationView(slug: string | number) {
-  const { data } = await api.post<{ views: number }>(`/dictations/${slug}/view/`)
-  return data
+/** Diktant/video ko'rila boshlanganda — `views`++ va kunlik limit tekshiruvi.
+ *  `kind`: 'video' (YouTube kontenti / listening test) yoki 'dictation'
+ *  (diktant yozish mashqi) — har biri o'z limit "chelagi"ga sanaladi.
+ *  Limitga yetilgan bo'lsa `{limited:true}` (global modal ochiladi). */
+export async function registerDictationView(
+  slug: string | number,
+  kind: 'video' | 'dictation' | 'ielts' = 'video',
+): Promise<{ views?: number; limited: boolean }> {
+  try {
+    const { data } = await api.post<{ views: number }>(`/dictations/${slug}/view/`, { kind })
+    return { ...data, limited: false }
+  } catch (e) {
+    if (isLimitError(e)) return { limited: true }
+    return { limited: false }
+  }
 }
 
 // --- Eski API (Movies/Songs/News uchun) -------------------------------
@@ -400,10 +421,14 @@ export interface IeltsListeningTestSummary {
   total_questions: number
   views: number
   created_at: string
+  /** Foydalanuvchi topshirgan bo'lsa oxirgi natija (ro'yxatda "bajarilgan" belgisi). */
+  my_result: { score: number; total: number } | null
 }
 
 export interface IeltsListeningTestDetail extends IeltsListeningTestSummary {
   html: string
+  /** Test sahifasiga qaytilganda ko'rsatiladigan oldingi natija (savol-savol bilan). */
+  my_result: { score: number; total: number; results: Record<string, boolean> } | null
 }
 
 export interface IeltsSubmitResult {
@@ -412,9 +437,20 @@ export interface IeltsSubmitResult {
   results: Record<string, boolean>
 }
 
-export async function fetchIeltsListeningTests(page = 1) {
+export interface IeltsListQuery {
+  page?: number
+  search?: string
+  /** `'1'` — faqat bajarilganlar, `'0'` — faqat bajarilmaganlar, bo'sh — hammasi. */
+  done?: '0' | '1' | ''
+}
+
+export async function fetchIeltsListeningTests(params: IeltsListQuery = {}) {
+  const { page = 1, search = '', done = '' } = params
+  const q: Record<string, string | number> = { page }
+  if (search.trim()) q.search = search.trim()
+  if (done) q.done = done
   const { data } = await api.get<Paginated<IeltsListeningTestSummary>>(
-    '/ielts-tests/', { params: { page } },
+    '/ielts-tests/', { params: q },
   )
   return data
 }
@@ -431,4 +467,11 @@ export async function submitIeltsListeningTest(
     `/ielts-tests/${slug}/submit/`, { answers },
   )
   return data
+}
+
+
+/** Ochilishda chiqadigan reklama (bo'lmasa `null`). */
+export async function fetchAppAd() {
+  const { data } = await api.get<{ ad: import('./types').AppAd | null }>('/app-ad/')
+  return data.ad
 }

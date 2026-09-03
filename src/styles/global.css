@@ -20,7 +20,6 @@ input::placeholder, textarea::placeholder { color: var(--text-secondary); }
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
 
-@keyframes softPulse { 0%, 100% { opacity: .3; } 50% { opacity: .75; } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -107,41 +106,9 @@ input, textarea, select { font-family: inherit; }
   .modechoice { grid-template-columns: 1fr !important; }
 }
 
-/* Onboarding ipuchi ("coach mark") — kichik kartochka pastdan yumshoq chiqadi.
-   Fon qorayimaydi, video davom etaveradi. `components/OnboardingHint.tsx`.
-   Ilgari bu yerda `qposHint` puls animatsiyasi bor edi — u har slotda qayta
-   yonib o'chardi va tushunarsiz edi; o'rniga bir martalik ipuchi keldi
-   (`utils/onboarding.ts` — 2 kunlik oyna + bir marta ko'rsatish). */
-@keyframes onbHintIn {
-  from { opacity: 0; transform: translateY(14px) scale(.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-.onb-hint { animation: onbHintIn .28s cubic-bezier(.2, .8, .2, 1) 1; }
-/* `bottom-center` joylashuvida X markazlash transform'i saqlanishi kerak —
-   shu bois unga alohida keyframe. */
-@keyframes onbHintInCenter {
-  from { opacity: 0; transform: translateX(-50%) translateY(14px) scale(.96); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-}
-.onb-hint--center { animation-name: onbHintInCenter; }
-
-/* Chizmadagi "to'lish" — ipuchi ochilganda vaqt oqayotgani sezilsin. */
-@keyframes onbFillV { from { height: 6%; } to { height: 62%; } }
-@keyframes onbFillH { from { width: 6%; } to { width: 58%; } }
-.onb-fill-v { animation: onbFillV 2.4s ease-in-out infinite alternate; height: 62%; }
-.onb-fill-h { animation: onbFillH 2.4s ease-in-out infinite alternate; width: 58%; }
-.onb-arrow  { animation: softPulse 1.6s ease-in-out infinite; }
-
-/* Ipuchi ochiq turganda tegishli tugmani ajratib ko'rsatadigan halqa. */
-.onb-spotlight {
-  border-radius: 999px;
-  box-shadow: 0 0 0 3px rgba(16,185,129,.45), 0 0 0 9px rgba(16,185,129,.14);
-  transition: box-shadow .2s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .onb-hint, .onb-fill-v, .onb-fill-h, .onb-arrow { animation: none; }
-}
+/* O'rgatish (onboarding) endi `components/CoachTour.tsx` — o'q + spotlight
+   bilan, `document.body` ga portal qilinadi. Bu yerdagi eski `.onb-*`
+   ipuchi animatsiyalari (`OnboardingHint.tsx` bilan birga) olib tashlandi. */
 
 :root, [data-theme="light"] {
   --bg: #F1F5F9;
