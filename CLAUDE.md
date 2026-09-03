@@ -574,21 +574,24 @@ Foydalanuvchi checkbox bilan yoqib qo'yishi mumkin — har savol AUDIO/VIDEO
 ning qaysi soniyasida ekanligini rangli belgilar bilan ko'rsatadi. Tanlov
 `localStorage` da saqlanadi va boshqa dictation/shorts'larga ham ta'sir qiladi.
 
-**MUHIM — belgi raqami = PANELDAGI savol raqami** (`positionMarks` `useMemo`,
-ham ShortsPage ham DictationPage): 1..N MCQ, keyin TFNG, keyin fill-gap —
-`TestView`/`QuizPanel` bilan aynan bir xil. Belgilar chizish uchun isbot vaqti
-bo'yicha saralanadi, lekin **raqam o'zgarmaydi**.
+**MUHIM — raqam SERVERDAN keladi** (`utils/questionNumber.ts::qNum` →
+savoldagi `number`), mijozda pozitsiyadan hisoblanmaydi. Server uni video
+bo'yicha **xronologik** qo'yadi, shu bois barda chapdan o'ngga raqamlar
+1, 2, 3, ... bo'lib boradi va paneldagi savol raqami bilan aynan mos
+tushadi. Belgilar chizish uchun isbot vaqti bo'yicha saralanadi.
 
-> **Ilgari xato bor edi:** belgilar saralangach KETMA-KET qayta raqamlanardi
-> (1,2,3...). Natijada bardagi raqam paneldagi savolga MOS KELMASDI. Real
-> misol (`Short #14`): bardagi "2" 16.2 s da turardi, paneldagi 2-savolning
-> javobi esa 33.8 s da — **17.6 s farq**. Foydalanuvchi shuni "savol joyi
-> noto'g'ri" deb ko'rardi. ("Isbot" tugmasi to'g'ri ishlardi, chunki u
-> savolning O'Z `proof_from_text` vaqtini oladi — muammo faqat shu barda edi.)
->
-> Chapdan o'ngga raqamlar ketma-ket bo'lmasligi mumkin — bu **normal**, chunki
-> har bo'lim (MCQ, TFNG, fill) videoni boshdan-oxir bosib o'tadi. Muhimi —
-> belgini ko'rgan odam panelda AYNAN o'sha savolni topa olishi.
+> **Ilgari raqam pozitsiyadan chiqarilardi** (MCQ 1..M, keyin TFNG M+1...)
+> va har bo'lim videoni boshdan-oxir alohida bosib o'tardi — barda
+> "3, 1, 2, 4" ko'rinardi. Endi tartibni server kafolatlaydi
+> (`backend/apps/catalog/shorts_pipeline.py::_number_globally`), eski
+> yozuvlarda esa `qNum` pozitsiyaga qaytadi.
+
+> **Eski xato (tarix uchun):** belgilar saralangach KETMA-KET qayta
+> raqamlanardi (1,2,3...) va bardagi raqam paneldagi savolga MOS
+> KELMASDI — `Short #14` da bardagi "2" 16.2 s da, paneldagi 2-savolning
+> javobi esa 33.8 s da edi. Keyin raqam paneldagi pozitsiyaga bog'landi,
+> lekin u ham yetarli bo'lmadi (yuqoriga qarang). Endi yagona haqiqat
+> manbai — serverdagi `number`.
 
 **Ikki komponent — bir g'oya, ikki layout:**
 

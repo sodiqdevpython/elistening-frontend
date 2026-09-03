@@ -219,18 +219,36 @@ export interface ContentGroup {
 
 // --- Pagination ---------------------------------------------------------
 // --- Shorts (AI-generatsiya qilingan qisqa video + savollar) ---
-export interface ShortMcqQuestion {
+
+/**
+ * Savol raqami — **serverdan** keladi (`number`), pozitsiyadan emas.
+ *
+ * Sabab: raqamlash MCQ → TFNG → Fill tartibida edi va har bo'lim videoni
+ * boshidan oxirigacha alohida bosib o'tardi. Natijada 2-savolning javobi
+ * 51-soniyada, 3-niki esa 18-soniyada eshitilishi mumkin edi — foydalanuvchi
+ * buni "3, 1, 2, 4" deb ko'rdi. Server endi har savolga videoning
+ * XRONOLOGIK tartibidagi raqamini yozadi
+ * (`backend/apps/catalog/shorts_pipeline.py::_number_globally`).
+ *
+ * Eski yozuvlarda maydon bo'lmasligi mumkin — `qNum()` (`utils/questionNumber`)
+ * u holda pozitsiyaga qaytadi.
+ */
+export interface QuestionNumbered {
+  number?: number
+}
+
+export interface ShortMcqQuestion extends QuestionNumbered {
   question: string
   options: Record<string, string>   // { A, B, C, D }
   answer: string                    // 'A' | 'B' | 'C' | 'D'
   proof_from_text: string           // "[12.3] iqtibos"
 }
-export interface ShortTfngQuestion {
+export interface ShortTfngQuestion extends QuestionNumbered {
   question: string
   answer: 'True' | 'False' | 'Not given' | string
   proof_from_text: string
 }
-export interface ShortFillGapQuestion {
+export interface ShortFillGapQuestion extends QuestionNumbered {
   /** Ichida "___" bo'lgan gap. */
   sentence: string
   /** Eskicha yagona javob (legacy). */

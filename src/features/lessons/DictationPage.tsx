@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/Layout'
 import YouTubePlayer, { type YouTubePlayerHandle } from '@/components/YouTubePlayer'
 import QuestionPositionBar from '@/components/QuestionPositionBar'
 import CoachTour, { firstVisible, type TourStep } from '@/components/CoachTour'
+import { qNum } from '@/utils/questionNumber'
 import { QuestionFeedbackModal, ReportModal } from '@/components/FeedbackModals'
 import AuthGateModal from '@/components/AuthGateModal'
 import {
@@ -744,10 +745,12 @@ export default function DictationPage() {
     const mcq = data?.mcq_questions ?? []
     const tfng = data?.tfng_questions ?? []
     const fill = data?.fill_gap_questions ?? []
+    // Raqam SERVERDAN (`qNum`) — paneldagi raqam bilan AYNAN bir xil bo'lishi
+    // uchun. Pozitsiyadan hisoblash "3, 1, 2, 4" muammosini bergan edi.
     const raw = [
-      ...mcq.map((q, i) => ({ n: i + 1, label: 'MCQ', proof: q.proof_from_text })),
-      ...tfng.map((q, i) => ({ n: mcq.length + i + 1, label: 'TFNG', proof: q.proof_from_text })),
-      ...fill.map((q, i) => ({ n: mcq.length + tfng.length + i + 1, label: 'Fill', proof: q.proof_from_text })),
+      ...mcq.map((q, i) => ({ n: qNum(q, i + 1), label: 'MCQ', proof: q.proof_from_text })),
+      ...tfng.map((q, i) => ({ n: qNum(q, mcq.length + i + 1), label: 'TFNG', proof: q.proof_from_text })),
+      ...fill.map((q, i) => ({ n: qNum(q, mcq.length + tfng.length + i + 1), label: 'Fill', proof: q.proof_from_text })),
     ]
     const secOf = (p?: string) => {
       const m = (p || '').match(/\[\s*([0-9]+(?:\.[0-9]+)?)\s*\]/)
@@ -1903,10 +1906,11 @@ function proofQuote(proof: string): string {
 
 /** Savollarning yagona, KETMA-KET raqamlangan ro'yxati.
  *
- *  Tartib: avval barcha MCQ, keyin TFNG, keyin fill-gap — server ularni
- *  isbot vaqti bo'yicha saralab yuboradi (`shorts_pipeline._order_quiz`),
- *  shu bois har bo'lim ichida savollar video oqimi bo'ylab ketma-ket keladi.
- *  IELTS'da ham aynan shunday: 1-savolning javobi eng oldin eshitiladi. */
+ *  Ko'rsatish tartibi: avval barcha MCQ, keyin TFNG, keyin fill-gap.
+ *  RAQAM esa pozitsiyadan emas, serverdagi `number` dan olinadi (`qNum`) —
+ *  u videoning XRONOLOGIK tartibi bo'yicha qo'yiladi
+ *  (`shorts_pipeline._number_globally`). IELTS'dagidek: 1-savolning javobi
+ *  eng oldin eshitiladi, keyin 2-niki. */
 type TestQuestion =
   | { kind: 'mcq'; key: string; n: number; q: ShortMcqQuestion }
   | { kind: 'tfng'; key: string; n: number; q: ShortTfngQuestion }
@@ -1916,9 +1920,9 @@ function buildQuestions(
   mcq: ShortMcqQuestion[], tfng: ShortTfngQuestion[], fill: ShortFillGapQuestion[],
 ): TestQuestion[] {
   const out: TestQuestion[] = []
-  mcq.forEach((q, i) => out.push({ kind: 'mcq', key: `mcq-${i}`, n: out.length + 1, q }))
-  tfng.forEach((q, i) => out.push({ kind: 'tfng', key: `tfng-${i}`, n: out.length + 1, q }))
-  fill.forEach((q, i) => out.push({ kind: 'fill', key: `fill-${i}`, n: out.length + 1, q }))
+  mcq.forEach((q, i) => out.push({ kind: 'mcq', key: `mcq-${i}`, n: qNum(q, out.length + 1), q }))
+  tfng.forEach((q, i) => out.push({ kind: 'tfng', key: `tfng-${i}`, n: qNum(q, out.length + 1), q }))
+  fill.forEach((q, i) => out.push({ kind: 'fill', key: `fill-${i}`, n: qNum(q, out.length + 1), q }))
   return out
 }
 

@@ -21,6 +21,7 @@ import { useAuth } from '@/store/auth'
 import { TOUR, useTour } from '@/utils/onboarding'
 import { shortPoster } from '@/utils/youtube'
 import { shuffleOptions } from '@/utils/shuffle'
+import { qNum } from '@/utils/questionNumber'
 import { useT } from '@/i18n'
 
 /* ============================================================
@@ -1033,10 +1034,12 @@ const ShortSlot = memo(function ShortSlot({
     const mcq = short.mcq_questions
     const tfng = short.tfng_questions
     const fill = short.fill_gap_questions
+    // Raqam SERVERDAN (`qNum`) — pozitsiyadan hisoblasak, bardagi raqam
+    // paneldagi savolga mos kelmasdi ("3, 1, 2, 4").
     const raw = [
-      ...mcq.map((q, i) => ({ n: i + 1, label: 'MCQ', proof: q.proof_from_text })),
-      ...tfng.map((q, i) => ({ n: mcq.length + i + 1, label: 'TFNG', proof: q.proof_from_text })),
-      ...fill.map((q, i) => ({ n: mcq.length + tfng.length + i + 1, label: 'Fill', proof: q.proof_from_text })),
+      ...mcq.map((q, i) => ({ n: qNum(q, i + 1), label: 'MCQ', proof: q.proof_from_text })),
+      ...tfng.map((q, i) => ({ n: qNum(q, mcq.length + i + 1), label: 'TFNG', proof: q.proof_from_text })),
+      ...fill.map((q, i) => ({ n: qNum(q, mcq.length + tfng.length + i + 1), label: 'Fill', proof: q.proof_from_text })),
     ]
     const secOf = (p?: string) => parseProof(p ?? '').seconds
     const withSec = raw.map((m) => ({ ...m, sec: secOf(m.proof) }))
@@ -1392,7 +1395,7 @@ function QuestionsPanel({
         {tab === 'mcq' && (mcqTotal === 0
           ? <Empty text="Ko'p tanlov savollari yo'q." />
           : short.mcq_questions.map((q, i) => (
-            <McqCard key={i} n={i + 1} q={q} picked={state.mcq[i]}
+            <McqCard key={i} n={qNum(q, i + 1)} q={q} picked={state.mcq[i]}
               reveal={reveal}
               onPick={(v) => pickMcq(i, v)} onProof={onProof} />
           )))}
@@ -1400,7 +1403,7 @@ function QuestionsPanel({
         {tab === 'tfng' && (tfngTotal === 0
           ? <Empty text="TFNG savollari yo'q."/>
           : short.tfng_questions.map((q, i) => (
-            <TfngCard key={i} n={mcqTotal + i + 1} q={q} picked={state.tfng[i]}
+            <TfngCard key={i} n={qNum(q, mcqTotal + i + 1)} q={q} picked={state.tfng[i]}
               reveal={reveal}
               onPick={(v) => pickTfng(i, v)} onProof={onProof} />
           )))}
@@ -1408,7 +1411,7 @@ function QuestionsPanel({
         {tab === 'fill' && (fillTotal === 0
           ? <Empty text="Bo'shliqni to'ldirish savollari yo'q." />
           : short.fill_gap_questions.map((q, i) => (
-            <FillCard key={i} n={mcqTotal + tfngTotal + i + 1} q={q}
+            <FillCard key={i} n={qNum(q, mcqTotal + tfngTotal + i + 1)} q={q}
               answered={state.fill[i]}
               reveal={reveal}
               onSubmit={(v) => submitFill(i, v)} onProof={onProof} />
@@ -1739,12 +1742,12 @@ function ResultTab({ short, state, finished, onRestart, onNext, hasNext }: {
     const out: { n: number; label: string; answered: boolean; correct: boolean }[] = []
     short.mcq_questions.forEach((q, i) => {
       const pick = state.mcq[i]
-      out.push({ n: i + 1, label: 'MCQ', answered: pick != null, correct: pick === q.answer })
+      out.push({ n: qNum(q, i + 1), label: 'MCQ', answered: pick != null, correct: pick === q.answer })
     })
     short.tfng_questions.forEach((q, i) => {
       const pick = state.tfng[i]
       out.push({
-        n: short.mcq_questions.length + i + 1, label: 'TFNG',
+        n: qNum(q, short.mcq_questions.length + i + 1), label: 'TFNG',
         answered: pick != null,
         correct: (pick || '').toLowerCase() === (q.answer || '').toLowerCase(),
       })
@@ -1756,7 +1759,7 @@ function ResultTab({ short, state, finished, onRestart, onNext, hasNext }: {
         ...(q.answer ? [q.answer] : []),
       ].map(normalizeFillAnswer).filter(Boolean)
       out.push({
-        n: short.mcq_questions.length + short.tfng_questions.length + i + 1,
+        n: qNum(q, short.mcq_questions.length + short.tfng_questions.length + i + 1),
         label: 'Fill',
         answered: pick != null,
         correct: accepted.includes(normalizeFillAnswer(pick || '')),
