@@ -13,9 +13,12 @@ ARG VITE_BOT_USERNAME=elistening_bot
 # Kontent o'rami paroli - backend `CONTENT_SECRET` bilan AYNAN bir xil
 # bo'lishi shart (`apps/common/protect.py`).
 ARG VITE_CONTENT_SECRET=sodiq2005.py
+# hCaptcha sitekey (login captcha). Bo'sh bo'lsa captcha o'chiq.
+ARG VITE_HCAPTCHA_SITEKEY=
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_BOT_USERNAME=$VITE_BOT_USERNAME
 ENV VITE_CONTENT_SECRET=$VITE_CONTENT_SECRET
+ENV VITE_HCAPTCHA_SITEKEY=$VITE_HCAPTCHA_SITEKEY
 
 RUN npm run build
 

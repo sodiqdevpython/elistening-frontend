@@ -285,10 +285,10 @@ export async function saveProgress(_payload: {
 }
 
 // --- Profil / auth -----------------------------------------------------
-export async function verifyOtp(code: string) {
+export async function verifyOtp(code: string, captchaToken?: string) {
   const { data } = await api.post<{
     access: string; refresh: string; is_new: boolean; needs_setup: boolean; user: Me
-  }>('/auth/telegram/verify/', { code })
+  }>('/auth/telegram/verify/', { code, captcha_token: captchaToken })
   return data
 }
 

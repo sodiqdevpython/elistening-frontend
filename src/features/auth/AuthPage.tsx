@@ -4,11 +4,14 @@ import { checkUsername, setupProfile, updateAvatar, verifyOtp } from '@/api/endp
 import { errorMessage } from '@/api/client'
 import { PageHeader } from '@/components/Layout'
 import { HeadphoneIcon } from '@/components/ui'
+import HCaptchaBox from '@/components/HCaptchaBox'
 import { useAuth } from '@/store/auth'
 import { useLang, useT } from '@/i18n'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'elistening_bot'
+// Bo'sh bo'lsa captcha o'chiq (lokal). Prod'da build vaqtida beriladi.
+const HCAPTCHA_SITEKEY = import.meta.env.VITE_HCAPTCHA_SITEKEY || ''
 
 /**
  * Kirish oqimi (soddalashtirilgan):
@@ -45,13 +48,15 @@ export default function AuthPage() {
   const [uiLang, setUiLang] = useState<'uz' | 'en'>(lang)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // hCaptcha tokeni. Captcha o'chiq bo'lsa 'disabled' (login bloklanmaydi).
+  const [captchaToken, setCaptchaToken] = useState('')
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
   const confirm = useCallback(async (code: string) => {
     setBusy(true)
     setError('')
     try {
-      const result = await verifyOtp(code)
+      const result = await verifyOtp(code, captchaToken)
       signIn(result.access, result.refresh, result.user)
       if (result.needs_setup) {
         setName(result.user.display_name || '')
@@ -64,19 +69,23 @@ export default function AuthPage() {
       setError(errorMessage(err, t.authInvalidCode))
       setDigits(['', '', '', '', '', ''])
       inputs.current[0]?.focus()
+      // Token bir martalik — xatodan keyin captchani qayta yechish kerak.
+      if (HCAPTCHA_SITEKEY) { setCaptchaToken(''); window.hcaptcha?.reset() }
     } finally {
       setBusy(false)
     }
-  }, [navigate, signIn, t.authInvalidCode])
+  }, [navigate, signIn, t.authInvalidCode, captchaToken])
 
-  // 6 xonali kod to'liq kiritilishi bilan avtomatik yuboramiz.
+  // 6 xonali kod to'liq kiritilishi bilan avtomatik yuboramiz — LEKIN captcha
+  // yechilgan bo'lsa (yoki o'chiq bo'lsa). Aks holda kutamiz.
   useEffect(() => {
     if (step !== 'otp' || busy) return
+    if (!captchaToken) return // captcha hali yechilmagan
     const code = digits.join('')
     if (code.length === 6 && /^\d{6}$/.test(code)) {
       confirm(code)
     }
-  }, [digits, step, busy, confirm])
+  }, [digits, step, busy, confirm, captchaToken])
 
   const setDigit = (index: number, value: string) => {
     const char = value.replace(/\D/g, '').slice(-1)
@@ -201,6 +210,12 @@ export default function AuthPage() {
                       transition: 'border-color .15s',
                     }} />
                 ))}
+              </div>
+
+              {/* Captcha — VITE_HCAPTCHA_SITEKEY berilgan bo'lsa ko'rinadi.
+                  Yechilmaguncha 6 raqamli kod yuborilmaydi. */}
+              <div style={{ margin: '4px 0 14px' }}>
+                <HCaptchaBox sitekey={HCAPTCHA_SITEKEY} onToken={setCaptchaToken} />
               </div>
 
               <div style={{
