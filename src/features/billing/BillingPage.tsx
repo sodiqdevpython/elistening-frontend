@@ -1,25 +1,63 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchMyLimits, fetchPlans, subscribe } from '@/api/endpoints'
+import { fetchMyLimits, subscribe } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
-import type { Plan } from '@/api/types'
-import { Badge, CheckIcon, ErrorState, SectionTitle, Spinner } from '@/components/ui'
+import { Badge, CheckIcon, SectionTitle, Spinner } from '@/components/ui'
 import { useAuth } from '@/store/auth'
 import { useLang, useT } from '@/i18n'
 
 /**
  * Tarif tanlash sahifasi — **`/profile/billing`**.
  *
- * **Nega alohida sahifa:** mobil ilovada tashqi to'lov havolasi bo'lishi
- * mumkin emas (App Store / Play Store qoidalari — publish'da muammo bo'ladi).
- * Shu bois limitga yetilganda ilova faqat "qaysi tarifdasiz + ertaga
- * yangilanadi" deydi, Telegram bot esa foydalanuvchiga **aynan shu
- * sahifaning** havolasini yuboradi
- * (`backend/apps/billing/limits.py::notify_limit_once`).
+ * **Tariflar STATIC** — kodda qat'iy yozilgan (API'dan OLINMAYDI). Uch tarif:
+ * Free, Plus (23 000 so'm/oy), Pro (32 000 so'm/oy). Har tarif nimalar
+ * qilishini shu yerda ko'rsatamiz. (Bugungi sarf esa foydalanuvchiga bog'liq,
+ * u dinamik — `GET /me/limits/`.)
  *
- * Sahifada: bugungi sarf, tariflar ro'yxati va tanlash tugmalari.
+ * Mobil ilovada tashqi to'lov havolasi bo'lmaydi (App/Play Store qoidasi);
+ * bu sahifa faqat saytda, bot limitga yetilganda shu yerga yo'naltiradi.
  */
+// Status nomlari — TARJIMA QILINMAYDI (uz va en da bir xil). Ular tarif
+// "statusi" sifatida ko'rinadi. Tagline (izoh) esa tilga qarab, tushunarli
+// bo'lishi uchun (web'da aniqroq).
+type StaticPlan = {
+  code: 'free' | 'plus' | 'pro'
+  status: string            // Qaldirg'och / Jo'shqin / Bo'talog'im (tarjimasiz)
+  taglineUz: string; taglineEn: string
+  priceUz: string; priceEn: string
+  featuresUz: string[]; featuresEn: string[]
+  highlight?: boolean
+}
+
+const PLANS: StaticPlan[] = [
+  {
+    code: 'free',
+    status: 'Qaldirg‘och',
+    taglineUz: 'Bepul — sinab ko‘rish uchun', taglineEn: 'Free — to get started',
+    priceUz: 'Bepul', priceEn: 'Free',
+    featuresUz: ['Kuniga 8 ta Shorts', 'Kuniga 2 ta video', 'Kuniga 2 ta diktant', 'Reklama bilan'],
+    featuresEn: ['8 Shorts per day', '2 videos per day', '2 dictations per day', 'Ads included'],
+  },
+  {
+    code: 'plus',
+    status: 'Jo‘shqin',
+    taglineUz: 'Faol o‘rganuvchilar uchun', taglineEn: 'For active learners',
+    priceUz: '23 000 so‘m', priceEn: '23,000 UZS',
+    featuresUz: ['Kuniga 30 ta Shorts', 'Kuniga 10 ta video', 'Cheksiz diktant', 'Kuniga 2 ta IELTS test', 'Reklamasiz'],
+    featuresEn: ['30 Shorts per day', '10 videos per day', 'Unlimited dictation', '2 IELTS tests per day', 'No ads'],
+    highlight: true,
+  },
+  {
+    code: 'pro',
+    status: 'Bo‘talog‘im',
+    taglineUz: 'Cheksiz — hammasi ochiq', taglineEn: 'Unlimited — everything unlocked',
+    priceUz: '32 000 so‘m', priceEn: '32,000 UZS',
+    featuresUz: ['Cheksiz Shorts', 'Cheksiz video', 'Cheksiz diktant', 'Cheksiz IELTS test', 'Reklamasiz'],
+    featuresEn: ['Unlimited Shorts', 'Unlimited videos', 'Unlimited dictation', 'Unlimited IELTS tests', 'No ads'],
+  },
+]
+
 export default function BillingPage() {
   const t = useT()
   const { lang } = useLang()
@@ -28,17 +66,16 @@ export default function BillingPage() {
   const { user, isLoggedIn, loading } = useAuth()
   const [message, setMessage] = useState('')
 
-  const plans = useQuery({ queryKey: ['plans'], queryFn: fetchPlans })
   const limits = useQuery({ queryKey: ['my-limits'], queryFn: fetchMyLimits, enabled: isLoggedIn })
 
   const choose = useMutation({
-    mutationFn: (plan: Plan) => subscribe(plan.code),
+    mutationFn: (code: string) => subscribe(code),
     onSuccess: () => {
       setMessage('')
       queryClient.invalidateQueries({ queryKey: ['me'] })
       queryClient.invalidateQueries({ queryKey: ['my-limits'] })
     },
-    onError: (err) => setMessage(errorMessage(err, t.billingError)),
+    onError: (err) => setMessage(errorMessage(err, t.paymentsSoon)),
   })
 
   if (loading) return <Spinner />
@@ -57,13 +94,12 @@ export default function BillingPage() {
 
   const current = user?.plan || 'free'
   const buckets = limits.data?.limits
-  const limitText = (v: number | null) => (v == null ? t.billingUnlimited : `${v} / ${t.billingPerDay}`)
 
   return (
     <div className="page" style={{ maxWidth: 1000, display: 'flex', flexDirection: 'column', gap: 20 }}>
       <SectionTitle sub={t.billingSubtitle}>{t.billingTitle}</SectionTitle>
 
-      {/* Bugungi holat — nima qolganini darrov ko'rsatadi */}
+      {/* Bugungi holat — nima qolganini darrov ko'rsatadi (foydalanuvchiga bog'liq) */}
       {buckets && (
         <div className="card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -93,54 +129,85 @@ export default function BillingPage() {
         </div>
       )}
 
-      {plans.isLoading && <Spinner />}
-      {plans.isError && <ErrorState onRetry={() => plans.refetch()} />}
-
+      {/* Tariflar — STATIC */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
-        {plans.data?.map((plan) => {
+        {PLANS.map((plan) => {
           const active = plan.code === current
-          const name = lang === 'en' ? plan.name_en : plan.name_uz
-          const price = lang === 'en' ? plan.price_label_en : plan.price_label_uz
+          const tagline = lang === 'en' ? plan.taglineEn : plan.taglineUz
+          const price = lang === 'en' ? plan.priceEn : plan.priceUz
+          const features = lang === 'en' ? plan.featuresEn : plan.featuresUz
+          const paid = plan.code !== 'free'
           return (
             <div
-              key={plan.id}
+              key={plan.code}
               className="card"
               style={{
                 padding: 22,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 12,
-                border: `1.5px solid ${active ? '#10B981' : 'var(--border)'}`,
+                position: 'relative',
+                border: `1.5px solid ${active ? '#10B981' : plan.highlight ? '#2563EB' : 'var(--border)'}`,
               }}
             >
+              {plan.highlight && !active && (
+                <div style={{
+                  position: 'absolute', top: -11, left: 18,
+                  background: '#2563EB', color: '#fff', borderRadius: 999,
+                  padding: '2px 10px', fontSize: 11, fontWeight: 800, letterSpacing: 0.3,
+                }}>{lang === 'en' ? 'POPULAR' : 'OMMABOP'}</div>
+              )}
+
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 18, fontWeight: 800 }}>{name}</span>
+                <div>
+                  {/* Status nomi — tarjimasiz, "status" ko'rinishida */}
+                  <span style={{
+                    display: 'inline-block', fontSize: 15, fontWeight: 900,
+                    background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
+                    WebkitBackgroundClip: 'text', backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent', letterSpacing: 0.2,
+                  }}>{plan.status}</span>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', fontWeight: 600, marginTop: 2 }}>
+                    {tagline}
+                  </div>
+                </div>
                 {active && <Badge>{t.billingCurrent}</Badge>}
               </div>
 
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{price}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 24, fontWeight: 900 }}>{price}</span>
+                {paid && (
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    / {lang === 'en' ? 'mo' : 'oy'}
+                  </span>
+                )}
+              </div>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {([
-                  [t.billingKindShorts, plan.daily_shorts_limit],
-                  [t.billingKindVideo, plan.daily_video_limit],
-                  [t.billingKindDictation, plan.daily_dictation_limit],
-                ] as const).map(([label, value]) => (
-                  <li key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5 }}>
+                {features.map((f) => (
+                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13.5 }}>
                     <CheckIcon />
-                    <span>{label}: <b>{limitText(value)}</b></span>
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
 
-              <button
-                className={active ? 'btn btn-ghost' : 'btn btn-primary'}
-                disabled={active || choose.isPending}
-                onClick={() => choose.mutate(plan)}
-                style={{ marginTop: 'auto', padding: '11px 18px' }}
-              >
-                {active ? t.billingCurrent : t.billingChoose}
-              </button>
+              {active ? (
+                <button className="btn btn-ghost" disabled style={{ marginTop: 'auto', padding: '11px 18px' }}>
+                  {t.billingCurrent}
+                </button>
+              ) : plan.code === 'free' ? (
+                <div style={{ marginTop: 'auto', height: 44 }} />
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  disabled={choose.isPending}
+                  onClick={() => choose.mutate(plan.code)}
+                  style={{ marginTop: 'auto', padding: '11px 18px' }}
+                >
+                  {t.billingChoose}
+                </button>
+              )}
             </div>
           )
         })}
