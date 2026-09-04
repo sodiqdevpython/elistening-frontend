@@ -131,7 +131,7 @@ export const STRINGS = {
     inviteTitle: 'Do‘stlarni taklif qiling',
     inviteDesc: 'Havolani ulashing — do‘stingiz botga kirib ro‘yxatdan o‘tsa hisobga olinadi.',
     inviteCountLabel: 'do‘st taklif qildingiz',
-    inviteRewardRule: 'Har 20 ta yangi foydalanuvchi — 1 oy Plus, har 40 tasi — 1 oy Pro. Sovg‘a avtomatik beriladi.',
+    inviteRewardRule: "Har 20 ta yangi foydalanuvchi — 1 oy Jo'shqin status, har 40 tasi — 1 oy Bo'talog'im status. Sovg‘a avtomatik beriladi.",
     inviteNextReward: 'Yana {n} ta — va 1 oylik {plan} sovg‘a bo‘ladi.',
     inviteRewardsTitle: 'Olingan sovg‘alar',
     inviteRewardRow: '{plan} · {months} oy ({invites} ta taklif)',
