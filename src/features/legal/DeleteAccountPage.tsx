@@ -77,9 +77,6 @@ export default function DeleteAccountPage() {
               <b> 60 days</b>, leaving no trace. If you sign in again within those 60 days,
               the deletion is <b>cancelled</b> and your account is kept.
             </P>
-            <P style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-              Temporarily downloaded audio (for transcription) is never stored — it is deleted immediately.
-            </P>
           </>
         )}
 

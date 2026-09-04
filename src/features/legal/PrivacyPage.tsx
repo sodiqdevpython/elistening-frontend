@@ -158,8 +158,7 @@ function En() {
       </Section>
 
       <Section title="Retention">
-        Your data is kept while your account is active. Temporarily downloaded audio
-        (for transcription) is deleted immediately and is never stored on the server.
+        Your data is kept while your account is active.
         If you request account deletion, your personal data is removed.
       </Section>
 
