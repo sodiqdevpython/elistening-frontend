@@ -212,6 +212,21 @@ export default function Layout() {
         <Outlet />
       </main>
 
+      {/* Footer — maxfiylik havolasi (Google Play ochiq URL talab qiladi).
+          Shorts to'liq-ekran bo'lgani uchun u yerda ko'rsatilmaydi. */}
+      {!location.pathname.startsWith('/shorts') && (
+        <footer style={{
+          textAlign: 'center', padding: '26px 16px', marginTop: 12,
+          color: 'var(--text-secondary)', fontSize: 13,
+          borderTop: '1px solid var(--border)',
+        }}>
+          <Link to="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
+            {t.privacyPolicy}
+          </Link>
+          {` · © ${new Date().getFullYear()} ${t.appName}`}
+        </footer>
+      )}
+
       {/* Kunlik limit oynasi — istalgan endpoint 403 `limit_reached` qaytarsa
           ochiladi (ilova darajasida bitta nusxa). */}
       <LimitGate />

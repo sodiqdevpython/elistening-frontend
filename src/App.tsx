@@ -18,6 +18,7 @@ const LeaderboardPage = lazy(() => import('@/features/leaderboard/LeaderboardPag
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const BillingPage = lazy(() => import('./features/billing/BillingPage'))
 const AuthPage = lazy(() => import('@/features/auth/AuthPage'))
+const PrivacyPage = lazy(() => import('@/features/legal/PrivacyPage'))
 
 export default function App() {
   const hydrate = useAuth((s) => s.hydrate)
@@ -89,6 +90,10 @@ export default function App() {
           <Route path="profile/billing" element={<BillingPage />} />
           <Route path="auth" element={<AuthPage />} />
           <Route path="invite/:code" element={<AuthPage />} />
+
+          {/* Maxfiylik siyosati — Google Play uchun ochiq URL (login shart emas) */}
+          <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="maxfiylik" element={<Navigate to="/privacy" replace />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

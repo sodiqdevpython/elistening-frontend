@@ -1,7 +1,7 @@
 /** Interfeys matnlari — maketdagi STRINGS obyektidan. */
 export const STRINGS = {
   uz: {
-    appName: 'listening.uz',
+    appName: 'eListening.uz', privacyPolicy: 'Maxfiylik siyosati',
     tabCatalog: 'Asosiy', tabTopics: 'Mavzular',
     tabShorts: 'Shorts',
     tabIeltsTests: 'IELTS Listening',
@@ -275,7 +275,7 @@ export const STRINGS = {
   },
 
   en: {
-    appName: 'listening.uz',
+    appName: 'eListening.uz', privacyPolicy: 'Privacy Policy',
     tabCatalog: 'Home', tabTopics: 'Topics',
     tabShorts: 'Shorts',
     tabIeltsTests: 'IELTS Listening',
