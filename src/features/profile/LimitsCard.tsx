@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { fetchMyLimits } from '@/api/endpoints'
 import type { LimitBucket } from '@/api/types'
 import { Badge, Spinner } from '@/components/ui'
+import { planStatusName } from '@/utils/planStatus'
 import { useLang, useT } from '@/i18n'
 
 /**
@@ -35,7 +36,7 @@ export default function LimitsCard() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 700 }}>{t.limitsLabel}</span>
-          {!!data && <Badge>{lang === 'en' ? data.plan_name_en : data.plan_name_uz}</Badge>}
+          {!!data && <Badge>{planStatusName(data.plan, lang === 'en' ? data.plan_name_en : data.plan_name_uz)}</Badge>}
         </div>
         <Link to="/profile/billing" className="btn btn-ghost"
           style={{ padding: '8px 14px', fontSize: 13, borderRadius: 10, textDecoration: 'none' }}>
