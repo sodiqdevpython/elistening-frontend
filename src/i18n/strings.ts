@@ -2,6 +2,11 @@
 export const STRINGS = {
   uz: {
     appName: 'eListening.uz', privacyPolicy: 'Maxfiylik siyosati',
+    deleteAccount: 'Akkauntni o‘chirish',
+    deleteAccountTitle: 'Akkauntni o‘chirishni tasdiqlang',
+    deleteAccountBody: 'Sizning akkauntingiz 60 kun ichida o‘chiriladi — tizimda siz qilgan barcha narsalar va siz haqingizdagi ma‘lumotlar butunlay o‘chib ketadi, hech qanday iz qolmaydi. Agar shu 60 kun ichida qayta kirsangiz, o‘chirish bekor bo‘ladi.',
+    deleteAccountConfirm: 'Ha, o‘chirishni so‘rayman',
+    deleteAccountPageTitle: 'Akkauntni o‘chirish',
     tabCatalog: 'Asosiy', tabTopics: 'Mavzular',
     tabShorts: 'Shorts',
     tabIeltsTests: 'IELTS Listening',
@@ -276,6 +281,11 @@ export const STRINGS = {
 
   en: {
     appName: 'eListening.uz', privacyPolicy: 'Privacy Policy',
+    deleteAccount: 'Delete account',
+    deleteAccountTitle: 'Confirm account deletion',
+    deleteAccountBody: 'Your account will be deleted within 60 days — everything you did and all information about you will be completely removed, leaving no trace. If you log in again within those 60 days, the deletion is cancelled.',
+    deleteAccountConfirm: 'Yes, request deletion',
+    deleteAccountPageTitle: 'Delete account',
     tabCatalog: 'Home', tabTopics: 'Topics',
     tabShorts: 'Shorts',
     tabIeltsTests: 'IELTS Listening',

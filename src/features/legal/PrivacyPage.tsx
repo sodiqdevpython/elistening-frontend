@@ -97,8 +97,11 @@ function Uz() {
 
       <Section title="Ma'lumotni o'chirish (sizning huquqingiz)">
         Istalgan vaqtda akkauntingizni va u bilan bog'liq shaxsiy ma'lumotlarni
-        o'chirishni so'rashingiz mumkin. Buning uchun Telegram bot {CONTACT_BOT} ga
-        yozing — so'rov qabul qilingach ma'lumotlaringiz o'chiriladi.
+        o'chirishni so'rashingiz mumkin — <b>Profil</b> sahifasidagi "Akkauntni
+        o'chirish" tugmasi orqali (yoki Telegram bot {CONTACT_BOT} ga yozib).
+        So'rovdan so'ng ma'lumotlaringiz <b>60 kun</b> ichida butunlay o'chiriladi.
+        Shu muddat ichida qayta kirsangiz, o'chirish bekor bo'ladi. Batafsil:{' '}
+        <a href="/delete-account">Akkauntni o'chirish</a>.
       </Section>
 
       <Section title="Bolalar">
@@ -162,8 +165,11 @@ function En() {
 
       <Section title="Deleting your data (your right)">
         You can request deletion of your account and associated personal data at any
-        time by messaging the Telegram bot {CONTACT_BOT}. Once received, your data
-        will be deleted.
+        time from the <b>Profile</b> page via the "Delete account" button (or by
+        messaging the Telegram bot {CONTACT_BOT}). After your request, your data is
+        completely removed within <b>60 days</b>. If you sign in again within that
+        period, the deletion is cancelled. Details:{' '}
+        <a href="/delete-account">Delete account</a>.
       </Section>
 
       <Section title="Children">

@@ -409,6 +409,13 @@ export async function subscribe(plan: string) {
   return data
 }
 
+/** Akkauntni o'chirish SO'ROVI — akkaunt darrov o'chmaydi, admin ko'radi.
+ *  Qayta login qilinsa bekor bo'ladi. Chaqiruvchi keyin logout qiladi. */
+export async function requestAccountDeletion() {
+  const { data } = await api.post<{ ok: boolean }>('/me/request-deletion/', {})
+  return data
+}
+
 export async function addVocab(_vocabItem: number) {
   return { added: true }
 }

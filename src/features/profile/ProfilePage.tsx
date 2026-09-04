@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  checkUsername, fetchActivity, fetchInvites, fetchPlans, fetchStats, subscribe,
+  checkUsername, fetchActivity, fetchInvites, fetchStats, requestAccountDeletion, subscribe,
   updateAvatar, updateMe,
 } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
-import type { Cefr, Plan } from '@/api/types'
+import type { Cefr } from '@/api/types'
 import { PageHeader } from '@/components/Layout'
 import {
-  Badge, CheckIcon, EmptyState, ErrorState, ProgressBar, Spinner,
+  Badge, EmptyState, ErrorState, ProgressBar, Spinner,
 } from '@/components/ui'
+import { PlanCards } from '@/features/billing/PlanCards'
 import { useAuth } from '@/store/auth'
 import LimitsCard from './LimitsCard'
 import PlanHistoryCard from './PlanHistoryCard'
@@ -32,6 +33,19 @@ export default function ProfilePage() {
   const [level, setLevel] = useState('B1')
   const [copied, setCopied] = useState(false)
   const [planMessage, setPlanMessage] = useState('')
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const confirmDelete = async () => {
+    setDeleting(true)
+    try {
+      await requestAccountDeletion()   // akkaunt o'chmaydi — admin ko'radi; login bekor qiladi
+      signOut()
+      navigate('/')
+    } catch {
+      setDeleting(false)
+    }
+  }
 
   // ── Username (mobil ilovadagi bilan bir xil qoidalar) ──
   const [username, setUsername] = useState('')
@@ -78,7 +92,6 @@ export default function ProfilePage() {
 
   const stats = useQuery({ queryKey: ['stats'], queryFn: fetchStats, enabled: isLoggedIn })
   const activity = useQuery({ queryKey: ['activity'], queryFn: () => fetchActivity(14), enabled: isLoggedIn })
-  const plans = useQuery({ queryKey: ['plans'], queryFn: fetchPlans })
   const invites = useQuery({ queryKey: ['invites'], queryFn: fetchInvites, enabled: isLoggedIn })
 
   const save = useMutation({
@@ -95,10 +108,10 @@ export default function ProfilePage() {
     },
   })
 
-  const choosePlan = async (plan: Plan) => {
+  const choosePlan = async (code: string) => {
     setPlanMessage('')
     try {
-      await subscribe(plan.code)
+      await subscribe(code)
       setPlanMessage('')
     } catch (err) {
       setPlanMessage(errorMessage(err, t.paymentsSoon))
@@ -404,53 +417,8 @@ export default function ProfilePage() {
               borderRadius: 10, padding: '10px 14px',
             }}>{planMessage}</div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16 }}>
-            {plans.data?.map((plan) => {
-              const isCurrent = plan.code === user.plan
-              return (
-                <div key={plan.id} style={{
-                  position: 'relative', border: `1.5px solid ${isCurrent ? '#10B981' : 'var(--border)'}`,
-                  borderRadius: 14, padding: 20, background: 'var(--bg-secondary)',
-                }}>
-                  {isCurrent && (
-                    <span style={{
-                      position: 'absolute', top: -11, right: 16,
-                      background: 'linear-gradient(135deg,#10B981 0%,#059669 100%)',
-                      color: '#FFF', fontSize: 10, fontWeight: 700, letterSpacing: '.03em',
-                      padding: '3px 10px', borderRadius: 8,
-                    }}>{t.currentPlanBadge}</span>
-                  )}
-                  <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>
-                    {lang === 'uz' ? plan.name_uz : plan.name_en}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 14 }}>
-                    <span style={{ fontSize: 22, fontWeight: 800 }}>
-                      {lang === 'uz' ? plan.price_label_uz : plan.price_label_en}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {lang === 'uz' ? '/oy' : '/mo'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-                    {(lang === 'uz' ? plan.features_uz : plan.features_en).map((feature) => (
-                      <div key={feature} style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 8,
-                        fontSize: 13, color: 'var(--text-secondary)',
-                      }}>
-                        <span style={{ flexShrink: 0, marginTop: 2 }}><CheckIcon /></span>
-                        <span>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={() => choosePlan(plan)} disabled={isCurrent}
-                    className={isCurrent ? 'btn btn-ghost' : 'btn btn-primary'}
-                    style={{ width: '100%', padding: '10px', fontSize: 14 }}>
-                    {isCurrent ? t.currentPlanBtn : t.selectPlanBtn}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+          {/* Static kartalar — /profile/billing bilan AYNAN bir xil */}
+          <PlanCards currentCode={user.plan} onChoose={choosePlan} />
         </div>
 
         {/* Taklif havolasi */}
@@ -525,7 +493,59 @@ export default function ProfilePage() {
 
         {/* Kirgan qurilmalar / sessiyalar */}
         <SessionsCard />
+
+        {/* Akkauntni o'chirish (so'rov) — Google Play talabi */}
+        <div className="card" style={{ padding: 20, borderColor: '#EF444455' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{t.deleteAccount}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.5 }}>
+            {t.deleteAccountBody}
+          </div>
+          <button
+            onClick={() => setDeleteOpen(true)}
+            style={{
+              padding: '10px 18px', borderRadius: 10, border: '1px solid #EF4444',
+              background: 'transparent', color: '#EF4444', fontWeight: 700, fontSize: 14,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >{t.deleteAccount}</button>
+        </div>
       </div>
+
+      {deleteOpen && (
+        <div
+          role="dialog" aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget && !deleting) setDeleteOpen(false) }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,.62)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: 16,
+          }}
+        >
+          <div style={{
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 18,
+            padding: 26, width: '100%', maxWidth: 420, boxShadow: '0 30px 70px rgba(0,0,0,.5)',
+            display: 'flex', flexDirection: 'column', gap: 14,
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{t.deleteAccountTitle}</div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              {t.deleteAccountBody}
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button
+                onClick={() => setDeleteOpen(false)} disabled={deleting}
+                className="btn btn-ghost" style={{ flex: 1, padding: '11px 16px' }}
+              >{t.cancelBtn}</button>
+              <button
+                onClick={confirmDelete} disabled={deleting}
+                style={{
+                  flex: 1, padding: '11px 16px', borderRadius: 10, border: 'none',
+                  background: '#EF4444', color: '#fff', fontWeight: 800, fontSize: 14,
+                  cursor: 'pointer', fontFamily: 'inherit', opacity: deleting ? 0.7 : 1,
+                }}
+              >{deleting ? '…' : t.deleteAccountConfirm}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

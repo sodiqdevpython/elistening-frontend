@@ -19,6 +19,7 @@ const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const BillingPage = lazy(() => import('./features/billing/BillingPage'))
 const AuthPage = lazy(() => import('@/features/auth/AuthPage'))
 const PrivacyPage = lazy(() => import('@/features/legal/PrivacyPage'))
+const DeleteAccountPage = lazy(() => import('@/features/legal/DeleteAccountPage'))
 
 export default function App() {
   const hydrate = useAuth((s) => s.hydrate)
@@ -94,6 +95,8 @@ export default function App() {
           {/* Maxfiylik siyosati — Google Play uchun ochiq URL (login shart emas) */}
           <Route path="privacy" element={<PrivacyPage />} />
           <Route path="maxfiylik" element={<Navigate to="/privacy" replace />} />
+          {/* Akkauntni o'chirish — Google Play "Delete account URL" uchun ochiq sahifa */}
+          <Route path="delete-account" element={<DeleteAccountPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
