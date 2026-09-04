@@ -53,9 +53,11 @@ export default function App() {
           {/* Media */}
           <Route path="shorts" element={<ShortsPage />} />
           <Route path="shorts/:id" element={<ShortsPage />} />
-          {/* Video kontent turlari — bir xil ShortsPage komponenti,
-              content_type filtri bilan (backend AI pipeline'i o'shani sozlaydi). */}
-          <Route path="news" element={<ShortsPage />} />
+          {/* Yangiliklar ham ODDIY VIDEO mavzusi (`Dictation.type='news'`) —
+              Filmlar/Multfilmlar bilan bir xil. `/news/:id` qoladi: eski
+              havolalar va `/shorts/` havolasi bilan qo'shilgan TIK
+              yangiliklar hali ham vertikal feed'da ochiladi. */}
+          <Route path="news" element={<Navigate to="/topics/news" replace />} />
           <Route path="news/:id" element={<ShortsPage />} />
           {/* Filmlar / Multfilmlar — endi ODDIY VIDEO mavzulari
               (`Dictation.type = movie|cartoon`), ya'ni `/topics/:type` bilan

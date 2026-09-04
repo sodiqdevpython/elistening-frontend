@@ -35,7 +35,7 @@ Manzil: http://localhost:5173
 | `/lessons/:id` | Legacy — eski link buzilmasin uchun (DictationPage bilan bir xil) |
 | `/dictations/:slug` | Legacy alias |
 | **`/shorts`, `/shorts/:id`** | **Shorts lentasi** — YouTube Shorts uslubidagi vertikal feed + savollar |
-| `/news`, `/news/:id` | ShortsPage feed (`content_type=news`) — eng yangisi birinchi |
+| `/news` | → `/topics/news` (yangilik ham oddiy VIDEO mavzusi). `/news/:id` qoladi — `/shorts/` havolasi bilan qo'shilgan TIK yangiliklar uchun |
 | **`/movies`, `/cartoons`** | → `/topics/movie` va `/topics/cartoon` ga **redirect**. Film/multfilm endi oddiy VIDEO (`Dictation.type`), ya'ni boshqa mavzular bilan bir xil grid va bir xil video sahifasi. Ilgari ular `Short` edi va vertikal feed'da ochilardi — uzun film tik shablonda chiqib, "na video na shorts" bo'lardi (`../backend/CLAUDE.md` → "Modelni HAVOLA tanlaydi") |
 | `/movies/:id`, `/cartoons/:id` | ShortsPage feed, o'sha videoga pin qilingan |
 | `/videos` | → `/topics/random-videos` ga redirect (soxta sahifa o'chirildi) |
