@@ -217,6 +217,26 @@ ishlatadi (`positionMarks`).
 YouTube Shorts uslubidagi vertikal lenta. O'ngda comment emas — **video
 bo'yicha AI savollari** (MCQ + TFNG), pastda natija.
 
+### Tik (9:16) va KENG (16:9) video — `is_vertical`
+
+`Short` modelida shorts ham, film/yangilik/multfilm ham yotadi, lekin
+ularning hammasi tik emas. Server havoladan aniqlaydi (`/shorts/` → tik) va
+javobga **`is_vertical`** qo'yadi.
+
+`ShortSlot` shu bayroqqa qarab `.shorts-stage` ga **`is-landscape`** klassini
+beradi; CSS esa faqat ikkita o'lchov o'zgaruvchisini almashtiradi:
+
+```css
+.shorts-stage.is-landscape {
+  --vid-w: min(var(--vid-max-w), calc(var(--stage-h) * 16 / 9));
+  --vid-h: calc(var(--vid-w) * 9 / 16);
+}
+```
+
+Mobil (≤900px) tartibda tik video full-bleed bo'ladi, keng video esa
+markazda `aspect-ratio: 16/9` bilan turadi — cho'zilmaydi va qirqilmaydi.
+Layoutning qolgan qismiga tegilmagan.
+
 ### Layout — bitta o'lchov manbasi
 
 JS scroll konteyner balandligini o'lchab `--slot-h` CSS o'zgaruvchisiga

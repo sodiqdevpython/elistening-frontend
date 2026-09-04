@@ -264,6 +264,14 @@ export type ShortContentType = 'short' | 'news' | 'cartoon' | 'movie'
 export interface Short {
   id: number
   content_type: ShortContentType
+  /**
+   * Player tik (9:16) yoki keng (16:9) chizilishi — server HAVOLADAN
+   * aniqlaydi: `/shorts/` bo'lsa `true`, oddiy `watch?v=` bo'lsa `false`.
+   * `content_type` ga bog'liq emas: Filmlar bo'limiga qo'shilgan oddiy
+   * video ham keng player oladi (`Short.is_vertical`).
+   * Eski javoblarda bo'lmasligi mumkin — `undefined` = tik (eski xulq).
+   */
+  is_vertical?: boolean
   youtube_id: string
   youtube_link: string
   title: string

@@ -365,6 +365,16 @@ input, textarea, select { font-family: inherit; }
   gap: var(--gap);
 }
 
+/* KENG (16:9) video — havolasida `/shorts/` bo'lmagan yozuvlar.
+   Film/yangilik `Short` modelida saqlanadi, lekin oddiy YouTube havolasi
+   bilan kelgan bo'lsa uni TIK player'da ko'rsatish xato edi (foydalanuvchi:
+   "filmlar ga qo'shdim, lekin shorts bo'lib chiqayabdi"). Bu yerda faqat
+   ikkita o'lchov o'zgaruvchisi almashadi — qolgan layout tegilmaydi. */
+.shorts-stage.is-landscape {
+  --vid-w: min(var(--vid-max-w), calc(var(--stage-h) * 16 / 9));
+  --vid-h: calc(var(--vid-w) * 9 / 16);
+}
+
 .shorts-video {
   position: relative;
   flex: 0 0 auto;
@@ -578,6 +588,15 @@ input, textarea, select { font-family: inherit; }
     position: absolute; inset: 0;
     width: 100%; height: 100%;
     border-radius: 0; box-shadow: none;
+  }
+  /* Keng (16:9) video to'liq ekranga CHO'ZILMAYDI — markazda, o'z
+     nisbatida turadi (film/yangilik oddiy YouTube havolasi bilan kelsa). */
+  .shorts-stage.is-landscape .shorts-video {
+    inset: 0 0 auto 0;
+    top: 50%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    transform: translateY(-50%);
   }
 
   /* Action rail — o'ngda vertikal overlay (video ustida), yarim-shaffof oq

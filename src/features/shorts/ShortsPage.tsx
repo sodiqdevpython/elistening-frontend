@@ -1053,7 +1053,11 @@ const ShortSlot = memo(function ShortSlot({
   }, [short.mcq_questions, short.tfng_questions, short.fill_gap_questions])
 
   return (
-    <div className="shorts-stage">
+    // `is_vertical` — serverda HAVOLADAN aniqlanadi (`/shorts/` bo'lsa tik).
+    // Film/yangilik `Short` modelida saqlanadi, lekin oddiy YouTube havolasi
+    // bilan kelgan bo'lsa keng (16:9) player oladi. Eski javoblarda maydon
+    // bo'lmasligi mumkin — u holda avvalgidek tik.
+    <div className={'shorts-stage' + (short.is_vertical === false ? ' is-landscape' : '')}>
       <div className="shorts-video">
         {/* Poster HAR DOIM ostida turadi — iframe yuklanguncha qora
             ekran ko'rinmaydi va slotga qaytilganda darrov chiziladi. */}
