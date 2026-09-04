@@ -11,7 +11,6 @@ const TopicsPage = lazy(() => import('@/features/lessons/TopicsPage'))
 const LessonsPage = lazy(() => import('@/features/lessons/LessonsPage'))
 const DictationPage = lazy(() => import('@/features/lessons/DictationPage'))
 const ShortsPage = lazy(() => import('@/features/shorts/ShortsPage'))
-const VideoTopicPage = lazy(() => import('@/features/videos/VideoTopicPage'))
 const IeltsListPage = lazy(() => import('@/features/ielts/IeltsListPage'))
 const IeltsTestPage = lazy(() => import('@/features/ielts/IeltsTestPage'))
 // News/Cartoons/Movies endi ShortsPage'ga yo'naltirilgan (bir xil AI feed).
@@ -58,11 +57,21 @@ export default function App() {
               content_type filtri bilan (backend AI pipeline'i o'shani sozlaydi). */}
           <Route path="news" element={<ShortsPage />} />
           <Route path="news/:id" element={<ShortsPage />} />
-          {/* Filmlar / Multfilmlar — GRID ro'yxat (/topics/news kabi). Bitta
-              videoni ochish esa vertikal feed'da (`/movies/:id`). */}
-          <Route path="movies" element={<VideoTopicPage />} />
+          {/* Filmlar / Multfilmlar — endi ODDIY VIDEO mavzulari
+              (`Dictation.type = movie|cartoon`), ya'ni `/topics/:type` bilan
+              bir xil grid va bir xil video sahifasi.
+
+              Ilgari ular `Short` modelida edi va kartochka bosilganda
+              VERTIKAL feed ochilardi — uzun film tik shablonda chiqib,
+              foydalanuvchi buni "na video na shorts" deb ta'rifladi.
+              Model endi HAVOLA bo'yicha tanlanadi
+              (`backend/apps/catalog/channel_ingest.py::pick_target`).
+
+              `:id` marshrutlari qoladi: `/shorts/` havolasi bilan qo'shilgan
+              TIK film/multfilm hali ham `Short` va vertikal feed'da ochiladi. */}
+          <Route path="movies" element={<Navigate to="/topics/movie" replace />} />
           <Route path="movies/:id" element={<ShortsPage />} />
-          <Route path="cartoons" element={<VideoTopicPage />} />
+          <Route path="cartoons" element={<Navigate to="/topics/cartoon" replace />} />
           <Route path="cartoons/:id" element={<ShortsPage />} />
           {/* Eski Movies detail sahifasi endi ishlatilmaydi lekin importlarni
               olib tashlamaymiz — kelajakda kerak bo'lishi mumkin. */}

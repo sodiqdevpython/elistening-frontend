@@ -133,7 +133,10 @@ function VideoCard({ short, routeBase }: { short: Short; routeBase: string }) {
     ? (short.cefr_from === short.cefr_to ? short.cefr_from : `${short.cefr_from}–${short.cefr_to}`)
     : (short.cefr_from || short.cefr_to || '')
   return (
-    <Link to={`${routeBase}/${short.id}`} className="yt-card"
+    // KENG (16:9) video — Shorts lentasi emas, oddiy VIDEO sahifasi.
+    // Ilgari hamma kartochka vertikal feed'ga (`/movies/:id`) olib borardi
+    // va uzun film tik shablonda ochilib, "na video na shorts" bo'lardi.
+    <Link to={short.is_vertical === false ? `/dictations/${short.id}` : `${routeBase}/${short.id}`} className="yt-card"
       style={{
         textDecoration: 'none', color: 'var(--text)',
         display: 'flex', flexDirection: 'column', gap: 10,
