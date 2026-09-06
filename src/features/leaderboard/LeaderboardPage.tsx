@@ -23,16 +23,25 @@ export default function LeaderboardPage() {
 
 function Board({ title, query }: {
   title: string
-  query: { data?: { my_hours: number; results: LeaderboardRow[] }; isLoading: boolean; isError: boolean; refetch: () => void }
+  query: { data?: { my_hours: number; my_seconds?: number; results: LeaderboardRow[] }; isLoading: boolean; isError: boolean; refetch: () => void }
 }) {
   const t = useT()
+  // Faol vaqt yorlig'i: xom `seconds` bo'lsa undan, aks holda `hours` dan.
+  // 1 soatdan kam bo'lsa DAQIQADA va eng kamida 1 daqiqa — backend `hours` ni
+  // 0.1 (6 daqiqa) aniqlikda yaxlitlagani sabab kichik faollik "0" bo'lardi.
+  const fmt = (seconds: number | undefined, hours: number): string => {
+    const sec = seconds != null ? seconds : Math.round((hours || 0) * 3600)
+    if (sec <= 0) return `0 ${t.minutesUnit}`
+    if (sec >= 3600) return `${(sec / 3600).toFixed(1)} ${t.hoursUnit}`
+    return `${Math.max(1, Math.round(sec / 60))} ${t.minutesUnit}`
+  }
   return (
     <div className="card" style={{ flex: '1 1 400px', padding: 24, minWidth: 0 }}>
       <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>{title}</div>
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
         {t.yourActiveTime}:{' '}
         <span style={{ fontWeight: 700, color: '#10B981' }}>
-          {query.data?.my_hours ?? 0} {t.hoursUnit}
+          {fmt(query.data?.my_seconds, query.data?.my_hours ?? 0)}
         </span>
       </div>
 
@@ -89,7 +98,7 @@ function Board({ title, query }: {
             }}>{row.name}</span>
           </div>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-            {row.hours} {t.hoursUnit}
+            {fmt(row.seconds, row.hours)}
           </span>
         </div>
       ))}

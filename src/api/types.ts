@@ -362,6 +362,9 @@ export interface LeaderboardRow {
   /** Foydalanuvchi rasm qo'ygan bo'lsa to'liq URL, aks holda `null`. */
   avatar_url: string | null
   hours: number
+  /** Xom soniyalar — kichik vaqtni daqiqada ko'rsatish uchun (eski javoblarda
+   *  bo'lmasligi mumkin). */
+  seconds?: number
   is_me: boolean
 }
 

@@ -92,7 +92,7 @@ export const STRINGS = {
 
     lb7Title: 'TOP 30 — so‘nggi 7 kun', lb30Title: 'TOP 30 — so‘nggi 30 kun',
     yourActiveTime: 'Sizning faol vaqtingiz', rankHeader: '#',
-    usernameHeader: 'Foydalanuvchi', activeTimeHeader: 'Faol vaqt', hoursUnit: 'soat',
+    usernameHeader: 'Foydalanuvchi', activeTimeHeader: 'Faol vaqt', hoursUnit: 'soat', minutesUnit: 'daq',
 
     authWelcomeTitle: 'Xush kelibsiz',
     authWelcomeDesc: 'Ingliz tilini diktant orqali o‘rganing. Kirish ham, ro‘yxatdan o‘tish ham Telegram bot orqali amalga oshadi.',
@@ -369,7 +369,7 @@ export const STRINGS = {
 
     lb7Title: 'TOP 30 — last 7 days', lb30Title: 'TOP 30 — last 30 days',
     yourActiveTime: 'Your active time', rankHeader: '#',
-    usernameHeader: 'Username', activeTimeHeader: 'Active time', hoursUnit: 'hours',
+    usernameHeader: 'Username', activeTimeHeader: 'Active time', hoursUnit: 'hours', minutesUnit: 'min',
 
     authWelcomeTitle: 'Welcome',
     authWelcomeDesc: 'Learn English through dictation. Both sign in and sign up happen through our Telegram bot.',
