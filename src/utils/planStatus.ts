@@ -1,11 +1,11 @@
 /**
- * Tarif kodi → creative STATUS nomi. **Static** (bazaga bog'liq emas) va
- * **tarjima qilinmaydi** (uz/en bir xil): Qaldirg'och / Jo'shqin / Bo'talog'im.
+ * Tarif kodi → STATUS nomi. **Static** (bazaga bog'liq emas) va
+ * **tarjima qilinmaydi** (uz/en bir xil): Oddiy / O'rta / Yuqori.
  */
 const PLAN_STATUS: Record<string, string> = {
-  free: 'Qaldirg‘och',
-  plus: 'Jo‘shqin',
-  pro: 'Bo‘talog‘im',
+  free: 'Oddiy',
+  plus: 'O‘rta',
+  pro: 'Yuqori',
 }
 
 export function planStatusName(code: string | null | undefined, fallback = ''): string {

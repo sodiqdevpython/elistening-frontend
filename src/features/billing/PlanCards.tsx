@@ -4,7 +4,7 @@ import { useLang, useT } from '@/i18n'
 /**
  * Tarif (status) kartalari — **STATIC**, `/profile/billing` va profil
  * sahifasidagi "Tarifni tanlang" bo'limida AYNAN bir xil ko'rinadi. Narx va
- * features kodda; status nomlari (Qaldirg'och/Jo'shqin/Bo'talog'im) tarjimasiz.
+ * features kodda; status nomlari (Oddiy/O'rta/Yuqori) tarjimasiz.
  */
 export type StaticPlan = {
   code: 'free' | 'plus' | 'pro'
@@ -18,7 +18,7 @@ export type StaticPlan = {
 export const STATUS_PLANS: StaticPlan[] = [
   {
     code: 'free',
-    status: 'Qaldirg‘och',
+    status: 'Oddiy',
     taglineUz: 'Bepul — sinab ko‘rish uchun', taglineEn: 'Free — to get started',
     priceUz: 'Bepul', priceEn: 'Free',
     featuresUz: ['Kuniga 8 ta Shorts', 'Kuniga 2 ta video', 'Kuniga 2 ta diktant', 'Reklama bilan'],
@@ -26,7 +26,7 @@ export const STATUS_PLANS: StaticPlan[] = [
   },
   {
     code: 'plus',
-    status: 'Jo‘shqin',
+    status: 'O‘rta',
     taglineUz: 'Faol o‘rganuvchilar uchun', taglineEn: 'For active learners',
     priceUz: '23 000 so‘m', priceEn: '23,000 UZS',
     featuresUz: ['Kuniga 30 ta Shorts', 'Kuniga 10 ta video', 'Cheksiz diktant', 'Kuniga 2 ta IELTS test', 'Reklamasiz'],
@@ -35,7 +35,7 @@ export const STATUS_PLANS: StaticPlan[] = [
   },
   {
     code: 'pro',
-    status: 'Bo‘talog‘im',
+    status: 'Yuqori',
     taglineUz: 'Cheksiz — hammasi ochiq', taglineEn: 'Unlimited — everything unlocked',
     priceUz: '32 000 so‘m', priceEn: '32,000 UZS',
     featuresUz: ['Cheksiz Shorts', 'Cheksiz video', 'Cheksiz diktant', 'Cheksiz IELTS test', 'Reklamasiz'],
