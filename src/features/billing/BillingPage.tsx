@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchMyLimits, subscribe } from '@/api/endpoints'
+import { fetchMyLimits, fetchWallet, payIntent } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
 import { Badge, SectionTitle, Spinner } from '@/components/ui'
 import { PlanCards } from './PlanCards'
+import { PaynetPanel } from './PaynetPanel'
+import { ClickPayButton } from './ClickPayButton'
 import { useAuth } from '@/store/auth'
 import { useLang, useT } from '@/i18n'
 
@@ -16,6 +18,11 @@ import { useLang, useT } from '@/i18n'
  *
  * Mobil ilovada tashqi to'lov havolasi bo'lmaydi (App/Play Store qoidasi);
  * bu sahifa faqat saytda, bot limitga yetilganda shu yerga yo'naltiradi.
+ *
+ * **To'lov — Paynet.** Tarif tanlangach `PaynetPanel` ochiladi: u "To'lash"
+ * tugmasi emas, YO'RIQNOMA ko'rsatadi (Paynet redirect'li checkout emas —
+ * foydalanuvchi Paynet ilovasida yoki kassada o'zi to'laydi). Pul kelganda
+ * tarif serverda o'zi yoqiladi, bu sahifada kutib turish shart emas.
  */
 export default function BillingPage() {
   const t = useT()
@@ -26,11 +33,13 @@ export default function BillingPage() {
   const [message, setMessage] = useState('')
 
   const limits = useQuery({ queryKey: ['my-limits'], queryFn: fetchMyLimits, enabled: isLoggedIn })
+  const wallet = useQuery({ queryKey: ['wallet'], queryFn: fetchWallet, enabled: isLoggedIn })
 
   const choose = useMutation({
-    mutationFn: (code: string) => subscribe(code),
-    onSuccess: () => {
-      setMessage('')
+    mutationFn: (code: string) => payIntent(code),
+    onSuccess: (data) => {
+      setMessage(data.activated ? t.payActivated : '')
+      queryClient.setQueryData(['wallet'], data)
       queryClient.invalidateQueries({ queryKey: ['me'] })
       queryClient.invalidateQueries({ queryKey: ['my-limits'] })
     },
@@ -90,6 +99,26 @@ export default function BillingPage() {
 
       {/* Tariflar — profil bilan AYNAN bir xil static kartalar */}
       <PlanCards currentCode={current} onChoose={(code) => choose.mutate(code)} busy={choose.isPending} />
+
+      {/* To'lov usullari — tarif tanlangandan keyin (yoki hisobda pul bo'lsa).
+          Ikkisi ATAYLAB boshqacha ko'rinadi, chunki oqimlari boshqacha:
+          Click — bosiladigan TUGMA, Paynet — o'qiladigan YO'RIQNOMA. */}
+      {wallet.data && (wallet.data.pending || wallet.data.balance_tiyin > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {wallet.data.pending && wallet.data.providers.click.enabled && (
+            <div className="card" style={{ padding: 20 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 12 }}>
+                {t.payChooseMethod}
+              </div>
+              <ClickPayButton
+                plan={wallet.data.pending.plan}
+                months={wallet.data.pending.months}
+              />
+            </div>
+          )}
+          <PaynetPanel wallet={wallet.data} />
+        </div>
+      )}
 
       {!!message && (
         <div className="card" style={{ padding: 16, borderColor: '#F59E0B', fontSize: 14, fontWeight: 600 }}>

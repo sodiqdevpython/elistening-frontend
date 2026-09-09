@@ -108,11 +108,24 @@ export default function ProfilePage() {
     },
   })
 
+  /**
+   * Profildagi tarif kartasi bosilganda.
+   *
+   * Paynet redirect'li checkout emas — to'lash uchun foydalanuvchiga To'lov ID
+   * va yo'riqnoma kerak, ular esa `/profile/billing` dagi `PaynetPanel` da.
+   * Shu bois niyatni saqlaymiz va O'SHA sahifaga o'tkazamiz. Balans yetib
+   * tarif darrov yoqilgan bo'lsa o'tkazish shart emas — shu yerda aytamiz.
+   */
   const choosePlan = async (code: string) => {
     setPlanMessage('')
     try {
-      await subscribe(code)
-      setPlanMessage('')
+      const state = await subscribe(code)
+      if (state?.activated) {
+        setPlanMessage(t.payActivated)
+        queryClient.invalidateQueries({ queryKey: ['me'] })
+        return
+      }
+      navigate('/profile/billing')
     } catch (err) {
       setPlanMessage(errorMessage(err, t.paymentsSoon))
     }

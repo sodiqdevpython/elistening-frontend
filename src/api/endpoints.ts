@@ -3,7 +3,7 @@ import type {
   ActivityDay, Category, ContentDetail, ContentGroup, ContentItem, CursorPaginated,
   Dictation, DictationDetail, DictationProgress, DictationType,
   GradeResponse, LeaderboardRow, Me,
-  Paginated, Plan, Stats,
+  Paginated, Plan, Stats, WalletState, ClickCheckout, ClickOrderStatus,
 } from './types'
 
 // --- Diktantlar (asosiy) -----------------------------------------------
@@ -404,8 +404,55 @@ export async function fetchMyLimits() {
   return data
 }
 
-export async function subscribe(plan: string) {
-  const { data } = await api.post('/billing/subscribe/', { plan })
+/**
+ * Tarif tanlash. Paynet redirect'li checkout EMAS, shu bois javob "havola"
+ * emas — **to'lov yo'riqnomasi** qaytadi (balans, to'lov ID, yetmagan summa).
+ * Balans allaqachon yetsa tarif darrov yoqiladi (`activated: true`).
+ */
+export async function subscribe(plan: string, months = 1) {
+  const { data } = await api.post<WalletState>('/billing/subscribe/', { plan, months })
+  return data
+}
+
+// ── Paynet hamyoni ────────────────────────────────────────────────────────
+// Paynet BIZGA keladi (JSON-RPC), sayt esa faqat balansni ko'rsatadi va
+// tarifni yoqadi. Batafsil: `backend/apps/paynet/CLAUDE.md`.
+
+export async function fetchWallet() {
+  const { data } = await api.get<WalletState>('/billing/wallet/')
+  return data
+}
+
+/** Tarifni tanlash: pul yetsa yoqadi, aks holda niyatni saqlaydi. */
+export async function payIntent(plan: string, months = 1) {
+  const { data } = await api.post<WalletState>('/billing/wallet/intent/', { plan, months })
+  return data
+}
+
+export async function cancelPayIntent() {
+  const { data } = await api.post<WalletState>('/billing/wallet/intent/cancel/', {})
+  return data
+}
+
+/** Balansdagi puldan tarifni yoqish. Pul yetmasa server 402 qaytaradi. */
+export async function buyFromBalance(plan: string, months = 1) {
+  const { data } = await api.post<WalletState>('/billing/wallet/buy/', { plan, months })
+  return data
+}
+
+// ── Click ─────────────────────────────────────────────────────────────────
+// Click redirect'li: buyurtma yaratamiz va foydalanuvchini `pay_url` ga
+// o'tkazamiz. To'lovni Click'ning O'ZI serverga tasdiqlaydi
+// (`/api/click/complete/`), brauzer emas — shu bois qaytgach holatni
+// SERVERDAN so'raymiz.
+
+export async function clickCheckout(plan: string, months = 1) {
+  const { data } = await api.post<ClickCheckout>('/billing/click/checkout/', { plan, months })
+  return data
+}
+
+export async function clickOrderStatus(orderId: number) {
+  const { data } = await api.get<ClickOrderStatus>(`/billing/click/orders/${orderId}/`)
   return data
 }
 

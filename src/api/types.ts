@@ -497,3 +497,70 @@ export interface AppAd {
   link_url: string
   duration_sec: number
 }
+
+
+/**
+ * `GET /api/billing/wallet/` — hamyon (provayderdan MUSTAQIL).
+ *
+ * Ikki provayder, ikki BUTUNLAY boshqa oqim:
+ *
+ * * **Click** — redirect: `pay_url` ga o'tkazamiz, qolganini Click qiladi.
+ * * **Paynet** — teskari: biz faqat `payment_id` ni ko'rsatamiz, foydalanuvchi
+ *   Paynet ilovasi yoki kassasida o'zi to'laydi.
+ *
+ * Ikkalasi ham oxirida shu `balance_tiyin` ga tushadi.
+ */
+export interface WalletState {
+  balance_tiyin: number
+  balance_uzs: number
+  balance_label: string
+  pending: WalletPlanChoice | null
+  providers: {
+    click: { enabled: boolean }
+    paynet: {
+      /** Paynet'da kiritiladigan raqam. `null` — foydalanuvchi bot orqali kirmagan. */
+      payment_id: string | null
+      /** Paynet ro'yxatidagi xizmat nomi (kassada shu ko'rinadi). */
+      service_name: string
+    }
+  }
+  /** Faqat `intent` / `buy` javoblarida. */
+  selected?: WalletPlanChoice
+  activated?: boolean
+  expires_at?: string | null
+  detail?: string
+}
+
+export interface WalletPlanChoice {
+  plan: string
+  plan_name: string
+  months: number
+  price_uzs: number
+  /** Tarif yoqilishi uchun yana qancha kerak (0 = yetarli). */
+  missing_uzs: number
+  enough: boolean
+}
+
+
+/** `POST /api/billing/click/checkout/` — buyurtma + my.click.uz havolasi. */
+export interface ClickCheckout {
+  order_id: number
+  plan: string
+  plan_name: string
+  months: number
+  amount_uzs: number
+  /** Foydalanuvchini SHU manzilga o'tkazamiz. */
+  pay_url: string
+}
+
+/** `GET /api/billing/click/orders/<id>/` — to'lov holati.
+ *  To'lovni Click'ning `Complete` so'rovi tasdiqlaydi, brauzer EMAS. */
+export interface ClickOrderStatus {
+  order_id: number
+  status: 'input' | 'waiting' | 'confirmed' | 'rejected'
+  paid: boolean
+  amount_uzs: number
+  plan: string
+  plan_name: string
+  months: number
+}
