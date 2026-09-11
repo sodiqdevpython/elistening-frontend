@@ -177,7 +177,10 @@ function ClickCard({ wallet }: { wallet: WalletState }) {
   return (
     <ProviderCard logo="/click_logo.png" alt="Click" tint="#0D7FFC" hint={t.payWithClickHint}>
       {choice ? (
-        <ClickPayButton plan={choice.plan} months={choice.months} />
+        // Click YETMAGAN qismni so'raydi (server shunday hisoblaydi), lekin
+        // u servisning minimal summasidan kichik bo'lolmaydi.
+        <ClickPayButton plan={choice.plan} months={choice.months}
+          amountUzs={Math.max(choice.missing_uzs, wallet.providers.click.min_uzs)} />
       ) : (
         // Click'da summa buyurtmadan olinadi, shu bois tarifsiz tugma
         // ishlamaydi. Tugmani "o'chirilgan" qilib qo'yish o'rniga NIMA

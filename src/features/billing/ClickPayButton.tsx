@@ -37,9 +37,12 @@ function takeReturnedOrder(): number | null {
  * Tasdiq bir necha soniya kechikishi mumkin (Click Complete'ni to'lovdan
  * keyin yuboradi), shuning uchun qisqa muddat qayta so'raymiz.
  */
-export function ClickPayButton({ plan, months = 1, disabled }: {
+export function ClickPayButton({ plan, months = 1, amountUzs, disabled }: {
   plan: string
   months?: number
+  /** Tugmada ko'rsatiladigan summa — foydalanuvchi Click sahifasida
+   *  kutilmagan raqamni ko'rmasligi uchun OLDINDAN aytamiz. */
+  amountUzs?: number
   disabled?: boolean
 }) {
   const t = useT()
@@ -120,7 +123,13 @@ export function ClickPayButton({ plan, months = 1, disabled }: {
         boxShadow: '0 4px 14px rgba(13,127,252,.30)',
       }}
     >
-      {start.isPending ? t.payClickOpening : t.payWithClick}
+      {start.isPending ? t.payClickOpening
+        : amountUzs ? `${t.payWithClick} · ${money(amountUzs)}`
+        : t.payWithClick}
     </button>
   )
+}
+
+function money(uzs: number) {
+  return `${uzs.toLocaleString('ru-RU').replace(/ /g, ' ')} so'm`
 }

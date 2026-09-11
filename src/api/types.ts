@@ -516,7 +516,12 @@ export interface WalletState {
   balance_label: string
   pending: WalletPlanChoice | null
   providers: {
-    click: { enabled: boolean }
+    click: {
+      enabled: boolean
+      /** Click qabul qiladigan eng kichik summa (so'm). Yetmagan qism
+       *  shundan kichik bo'lsa, to'lovda shu summa olinadi. */
+      min_uzs: number
+    }
     paynet: {
       /** Paynet'da kiritiladigan raqam. `null` — foydalanuvchi bot orqali kirmagan. */
       payment_id: string | null
@@ -548,7 +553,12 @@ export interface ClickCheckout {
   plan: string
   plan_name: string
   months: number
+  /** HAQIQATDA to'lanadigan summa — tarif narxi EMAS, yetmagan qism. */
   amount_uzs: number
+  /** Tarifning to'liq narxi (ma'lumot uchun). */
+  price_uzs: number
+  /** Minimal summagacha ko'tarilgan ortiqcha qism — hamyonda qoladi. */
+  extra_uzs: number
   /** Foydalanuvchini SHU manzilga o'tkazamiz. */
   pay_url: string
 }
