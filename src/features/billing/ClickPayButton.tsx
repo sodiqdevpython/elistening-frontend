@@ -108,16 +108,19 @@ export function ClickPayButton({ plan, months = 1, disabled }: {
   }
 
   return (
+    // Izoh kartochka sarlavhasida turibdi (`PaymentMethods.tsx`), shu bois
+    // tugmada takrorlanmaydi — faqat amal.
     <button
-      className="btn btn-primary"
       onClick={() => start.mutate()}
       disabled={disabled || start.isPending}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
+      style={{
+        width: '100%', border: 'none', borderRadius: 12, cursor: 'pointer',
+        padding: '12px 16px', fontSize: 14.5, fontWeight: 800, color: '#FFF',
+        background: start.isPending ? '#6AA9FF' : '#0D7FFC',
+        boxShadow: '0 4px 14px rgba(13,127,252,.30)',
+      }}
     >
-      <span style={{ fontWeight: 800 }}>
-        {start.isPending ? t.payClickOpening : t.payWithClick}
-      </span>
-      <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>{t.payWithClickHint}</span>
+      {start.isPending ? t.payClickOpening : t.payWithClick}
     </button>
   )
 }

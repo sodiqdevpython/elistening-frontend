@@ -13,6 +13,7 @@ import {
 } from '@/components/ui'
 import { PlanCards } from '@/features/billing/PlanCards'
 import { useAuth } from '@/store/auth'
+import { displayHandle } from '@/utils/username'
 import LimitsCard from './LimitsCard'
 import PlanHistoryCard from './PlanHistoryCard'
 import SessionsCard from './SessionsCard'
@@ -226,9 +227,11 @@ export default function ProfilePage() {
                 <div style={{ fontSize: 20, fontWeight: 800 }}>
                   {user.display_name || t.defaultUserName}
                 </div>
-                {!!user.username && (
+                {/* Avtomatik `tg<chat_id>` KO'RSATILMAYDI — u foydalanuvchi
+                    tanlagan nom emas, texnik to'ldiruvchi. */}
+                {!!displayHandle(user.username) && (
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 2 }}>
-                    @{user.username}
+                    @{displayHandle(user.username)}
                   </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>

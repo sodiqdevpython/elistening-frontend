@@ -656,3 +656,10 @@ input, textarea, select { font-family: inherit; }
   }
   .shorts-sheet.playing .shorts-panel-body { overscroll-behavior: contain; }
 }
+
+/* Navbar hamyoni (`components/WalletPill.tsx`).
+   Tor ekranda akkaunt ID olib tashlanadi — balans muhimroq va navbar
+   ikki qatorga sinib ketmasligi kerak. */
+@media (max-width: 720px) {
+  .wallet-pill-id { display: none; }
+}

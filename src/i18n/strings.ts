@@ -139,7 +139,10 @@ export const STRINGS = {
     // kassada O‘ZI to‘laydi, biz faqat “qaysi ID bilan” deb aytamiz. Shu bois
     // matnlar “to‘layotgan odamga yo‘riqnoma” uslubida yozilgan.
     // —— To'lov usulini tanlash ——
-    payChooseMethod: 'To‘lov usulini tanlang',
+    payChooseMethod: 'To‘lov usuli',
+    payPickPlanFirst: 'Avval yuqoridan tarif tanlang',
+    payProviderOff: 'Hozircha mavjud emas',
+    walletPillHint: 'Hisobingiz va to‘lov ID',
     payWithClick: 'Click orqali to‘lash',
     payWithClickHint: 'Karta yoki telefon raqami bilan — bir necha soniyada',
     payWithPaynet: 'Paynet orqali to‘lash',
@@ -448,7 +451,10 @@ export const STRINGS = {
     currentPlanBadge: 'CURRENT', selectPlanBtn: 'Select', currentPlanBtn: 'Current plan',
     paymentsSoon: 'The payment could not be completed — please try again later.',
 
-    payChooseMethod: 'Choose how to pay',
+    payChooseMethod: 'Payment method',
+    payPickPlanFirst: 'Pick a plan above first',
+    payProviderOff: 'Not available yet',
+    walletPillHint: 'Your balance and payment ID',
     payWithClick: 'Pay with Click',
     payWithClickHint: 'Card or phone number — takes seconds',
     payWithPaynet: 'Pay with Paynet',

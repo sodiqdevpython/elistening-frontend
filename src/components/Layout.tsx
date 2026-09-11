@@ -6,6 +6,7 @@ import { useTheme } from '@/theme/ThemeProvider'
 import { useAuth } from '@/store/auth'
 import { fetchSiteConfig } from '@/api/endpoints'
 import { HeadphoneIcon, MoonIcon, SunIcon } from './ui'
+import { WalletPill } from './WalletPill'
 import { formatMinutes } from '@/utils/format'
 import LimitGate from './LimitGate'
 
@@ -174,6 +175,8 @@ export default function Layout() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Balans + akkaunt ID — kirgan foydalanuvchiga har sahifada. */}
+          <WalletPill />
           <TodayTimeIndicator />
           <button onClick={toggleTheme}
             style={{ ...toggleBtn, padding: '6px 10px', display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}
