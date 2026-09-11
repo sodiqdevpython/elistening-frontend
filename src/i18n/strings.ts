@@ -160,6 +160,7 @@ export const STRINGS = {
     payClickNotPaid: 'To‘lov hali tasdiqlanmadi. Agar to‘lagan bo‘lsangiz, bir daqiqadan keyin yangilang.',
     payClickFailed: 'To‘lov bekor qilindi yoki amalga oshmadi.',
     payRefresh: 'Yangilash',
+    payTryAgain: 'Qayta to‘lash',
 
     payTitle: 'To‘lov — Paynet',
     payBalance: 'Hisobingiz',
@@ -479,6 +480,7 @@ export const STRINGS = {
     payClickNotPaid: 'The payment is not confirmed yet. If you have paid, refresh in a minute.',
     payClickFailed: 'The payment was cancelled or did not go through.',
     payRefresh: 'Refresh',
+    payTryAgain: 'Pay again',
 
     payTitle: 'Payment — Paynet',
     payBalance: 'Your balance',

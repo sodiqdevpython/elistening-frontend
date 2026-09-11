@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { buyFromBalance, cancelPayIntent } from '@/api/endpoints'
 import type { WalletState } from '@/api/types'
-import { useT } from '@/i18n'
+import { useLang, useT } from '@/i18n'
 import { ClickPayButton } from './ClickPayButton'
 import { PlanCards } from './PlanCards'
 
@@ -209,6 +209,7 @@ function ClickStep({ wallet }: { wallet: WalletState }) {
  *  yubora olmaymiz. */
 function PaynetStep({ wallet }: { wallet: WalletState }) {
   const t = useT()
+  const { lang } = useLang()
   const choice = wallet.pending!
   const paymentId = wallet.providers.paynet.payment_id!
   const serviceName = wallet.providers.paynet.service_name
@@ -226,7 +227,7 @@ function PaynetStep({ wallet }: { wallet: WalletState }) {
             <li>{t.payStep1}</li>
             <li>{fill(t.payStep2, { service: serviceName })}</li>
             <li>{splitOnce(t.payStep3, '{id}', <b key="id">{paymentId}</b>)}</li>
-            <li>{fill(t.payStep4, { amount: money(choice.missing_uzs) })}</li>
+            <li>{fill(t.payStep4, { amount: money(choice.missing_uzs, lang) })}</li>
           </ol>
           <div style={{
             fontSize: 12.5, color: 'var(--text-secondary)', background: 'var(--bg-secondary)',
@@ -245,6 +246,7 @@ function Summary({ choice, amount }: {
   choice: NonNullable<WalletState['pending']>; amount: number
 }) {
   const t = useT()
+  const { lang } = useLang()
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
       gap: 12, flexWrap: 'wrap' }}>
@@ -264,8 +266,8 @@ function Summary({ choice, amount }: {
             foydalanuvchi nega kamroq to'layotganini darrov tushunsin. */}
         {choice.upgrade_credit_uzs > 0 && (
           <div style={{ fontSize: 12.5, marginTop: 2, color: 'var(--text-secondary)' }}>
-            <s>{money(choice.full_price_uzs)}</s>{' → '}
-            <b style={{ color: '#059669' }}>{money(choice.price_uzs)}</b>
+            <s>{money(choice.full_price_uzs, lang)}</s>{' → '}
+            <b style={{ color: '#059669' }}>{money(choice.price_uzs, lang)}</b>
           </div>
         )}
       </div>
@@ -275,7 +277,7 @@ function Summary({ choice, amount }: {
           {amount ? t.payAmountLabel : t.payEnough}
         </div>
         {!!amount && (
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#059669' }}>{money(amount)}</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#059669' }}>{money(amount, lang)}</div>
         )}
       </div>
     </div>
@@ -313,8 +315,9 @@ function ActivateFromBalance({ choice }: { choice: NonNullable<WalletState['pend
 }
 
 // ── Kichik yordamchilar ───────────────────────────────────────────────────
-function money(uzs: number) {
-  return `${uzs.toLocaleString('ru-RU').replace(/ /g, ' ')} so'm`
+function money(uzs: number, lang: string) {
+  const value = uzs.toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU').replace(/ /g, ' ')
+  return lang === 'en' ? `${value} UZS` : `${value} so'm`
 }
 
 function fill(text: string, vars: Record<string, string>) {
