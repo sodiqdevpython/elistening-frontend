@@ -111,7 +111,7 @@ export function ClickPayButton({ plan, months = 1, amountUzs, disabled }: {
   }
 
   return (
-    // Izoh kartochka sarlavhasida turibdi (`PaymentMethods.tsx`), shu bois
+    // Izoh 1-bosqichdagi kartochkada turibdi (`PaymentFlow.tsx`), shu bois
     // tugmada takrorlanmaydi — faqat amal.
     <button
       onClick={() => start.mutate()}

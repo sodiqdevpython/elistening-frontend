@@ -540,7 +540,12 @@ export interface WalletPlanChoice {
   plan: string
   plan_name: string
   months: number
+  /** HAQIQATDA to'lanadigan summa — ko'tarilishda tarif farqi. */
   price_uzs: number
+  /** Tarifning e'lon qilingan narxi. */
+  full_price_uzs: number
+  /** Ko'tarilish chegirmasi (0 — oddiy sotib olish). */
+  upgrade_credit_uzs: number
   /** Tarif yoqilishi uchun yana qancha kerak (0 = yetarli). */
   missing_uzs: number
   enough: boolean

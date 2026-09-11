@@ -797,8 +797,40 @@ Batafsil: `../backend/CLAUDE.md` → "Kontent o'rami".
 
 ## Tariflar sahifasi (`features/billing/BillingPage.tsx`)
 
-**`/profile/billing`** — bugungi sarf (`GET /me/limits/`) + tariflar ro'yxati
-va tanlash tugmalari.
+**`/profile/billing`** — to'lov oqimi + tariflar + bugungi sarf.
+
+### Oqim tartibi: USUL -> TARIF -> SUMMA
+
+`PaymentFlow.tsx` uch bosqichni shu tartibda ko'rsatadi:
+
+```
+[balans + to'lov ID]        har doim, tepada
+
+1. Qanday to'lamoqchisiz?   Click / Paynet  (tanlanadi)
+2. Qaysi tarifni olasiz?    PlanCards       (usul tanlangach)
+3. To'lov                   summa + amal    (tarif tanlangach)
+```
+
+**Tartib ATAYLAB shunday.** Ilgari teskari edi (avval tarif, keyin to'lov
+usullari) va tarif tanlangach ekranda birdaniga ikkita butunlay boshqacha
+blok chiqardi — Click tugmasi va Paynet yo'riqnomasi. Foydalanuvchi "men
+nima qilishim kerak?" deb qolardi. Usul birinchi bo'lsa, keyingi ekranlarda
+faqat o'sha usulga tegishli narsa qoladi — **bir vaqtda bitta qaror**.
+
+3-bosqich usulga qarab tubdan farq qiladi va bu to'g'ri:
+
+| | Click | Paynet |
+|---|---|---|
+| Nima ko'rinadi | **Tugma** (my.click.uz ga o'tadi) | **Raqam + yo'riqnoma** |
+| Nega | Redirect checkout | Foydalanuvchi kassada O'ZI to'laydi |
+
+Tarif tanlovi **serverda** saqlanadi (`pending_plan`), local state'da emas:
+Paynet'da pul bir necha soatdan keyin kelishi mumkin va tarif o'sha paytda
+avtomatik yoqilishi kerak — brauzer yopiq bo'lsa ham.
+
+Past tarif kartochkasi **o'chirilgan** bo'ladi (joriy tarif yuqoriroq
+bo'lsa), ko'tarilishda esa kartochkada **farq narxi** ko'rinadi — ikkalasi
+ham `../backend/apps/billing/pricing.py` qoidalari.
 
 **Nega ALOHIDA sahifa:** mobil ilovada tashqi to'lov havolasi bo'lishi mumkin
 emas (App Store / Play Store qoidalari — publish'da muammo bo'ladi). Shu bois

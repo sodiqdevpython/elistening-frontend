@@ -4,8 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchMyLimits, fetchWallet, payIntent } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
 import { Badge, SectionTitle, Spinner } from '@/components/ui'
-import { PlanCards } from './PlanCards'
-import { PaymentMethods } from './PaymentMethods'
+import { PaymentFlow } from './PaymentFlow'
 import { useAuth } from '@/store/auth'
 import { useLang, useT } from '@/i18n'
 
@@ -66,6 +65,23 @@ export default function BillingPage() {
     <div className="page" style={{ maxWidth: 1000, display: 'flex', flexDirection: 'column', gap: 20 }}>
       <SectionTitle sub={t.billingSubtitle}>{t.billingTitle}</SectionTitle>
 
+      {/* To'lov oqimi: 1) usul  2) tarif  3) summa va to'lash.
+          Tartib ATAYLAB shunday — batafsil `PaymentFlow.tsx` izohida. */}
+      {wallet.data && (
+        <PaymentFlow
+          wallet={wallet.data}
+          currentPlan={current}
+          onChoosePlan={(code) => choose.mutate(code)}
+          busy={choose.isPending}
+        />
+      )}
+
+      {!!message && (
+        <div className="card" style={{ padding: 16, borderColor: '#F59E0B', fontSize: 14, fontWeight: 600 }}>
+          {message}
+        </div>
+      )}
+
       {/* Bugungi holat — nima qolganini darrov ko'rsatadi (foydalanuvchiga bog'liq) */}
       {buckets && (
         <div className="card" style={{ padding: 20 }}>
@@ -93,20 +109,6 @@ export default function BillingPage() {
               )
             })}
           </div>
-        </div>
-      )}
-
-      {/* Tariflar — profil bilan AYNAN bir xil static kartalar */}
-      <PlanCards currentCode={current} onChoose={(code) => choose.mutate(code)} busy={choose.isPending} />
-
-      {/* To'lov bo'limi — HAR DOIM ko'rinadi (tarif tanlanmagan bo'lsa ham).
-          Sabab: foydalanuvchi balansini va to'lov ID'sini shu sahifadan
-          topishi kerak, hatto hozir sotib olmoqchi bo'lmasa ham. */}
-      {wallet.data && <PaymentMethods wallet={wallet.data} />}
-
-      {!!message && (
-        <div className="card" style={{ padding: 16, borderColor: '#F59E0B', fontSize: 14, fontWeight: 600 }}>
-          {message}
         </div>
       )}
     </div>
