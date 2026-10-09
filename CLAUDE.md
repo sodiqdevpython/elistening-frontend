@@ -98,6 +98,22 @@ Enter bosilishi bilanoq mijozda `gradeDictation(fullAnswer, given)` — API'ga
 so'rov ketmaydi. Backend'da grader yo'q endi (kerak emas — diktant kontenti
 `body.text` da ochiq).
 
+**Har so'z UCH holatdan birida** (`ok` / `typo` / `missing`) — ikkilik emas.
+
+Nega: ilgari "xato yozilgan" va "umuman yozilmagan" so'z bir xil ko'rinardi.
+Foydalanuvchi bitta so'zni xato yozib qolganini yozmaganda, ekranda beshala
+so'z bir xil belgilanar va *"men qayerda xato qildim?"* degan savol qolardi.
+
+Buning uchun oddiy qidiruv yetmaydi — foydalanuvchi so'zini asl so'z bilan
+**juftlash** kerak. `grade.ts` Needleman–Wunsch tekislashini ishlatadi,
+juftlash narxi esa o'xshashlikka bog'liq: o'xshash so'zlar arzon juftlanadi
+(= tuzatish), begonalari o'chirish+qo'shishdan ham qimmat (= yozilmagan +
+ortiqcha). Sabab va chetki holatlar `grade.ts` boshidagi izohda.
+
+`FeedbackLine` buni rang bilan ko'rsatadi: yashil / **qizil + foydalanuvchi
+varianti chizib tashlangan** / kulrang punktir. Ostida `extra` — matnda
+umuman yo'q so'zlar.
+
 ### Klaviatura yorliqlari
 
 - **Enter** — tekshirish. To'g'ri bo'lsa **500 ms** yashil ✓ ko'rsatib keyingi chunk (`AUTO_NEXT_MS = 500`)
@@ -517,7 +533,11 @@ Uchta nozik joy (uchalasi ham jonli sahifada o'lchab tuzatilgan):
 ### `utils/grade.ts`
 
 - `normalize(text)` — bag'rikeng normalizatsiya (kasa-kichik, tinish, `26th`=`26`, `1,000`=`1000`)
-- `gradeDictation(expected, given)` — DictationResult (isCorrect, score, matched, total, words[])
+- `gradeDictation(expected, given)` — `DictationResult`:
+  `isCorrect`, `score`, `matched`, `total`, `words[]`, `extra[]`
+- `words[i].state` — `'ok' | 'typo' | 'missing'`; `typed` — foydalanuvchi
+  varianti (faqat `typo` uchun). `found`/`dots` eski moslik uchun qoldirilgan
+- Ball semantikasi o'zgarmagan: `matched`/`total` — token darajasida
 
 ### Songs sahifasi olib tashlangan
 

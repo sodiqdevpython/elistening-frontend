@@ -1301,7 +1301,9 @@ export default function DictationPage() {
                     display: 'flex', alignItems: 'center', gap: 8,
                     fontSize: 14, fontWeight: 700, color: '#D97706', marginBottom: 8,
                   }}>
-                    {result.matched}/{result.total} to'g'ri
+                    {t.dictCorrectCount
+                      .replace('{n}', String(result.matched))
+                      .replace('{total}', String(result.total))}
                   </div>
                 )}
               </div>
@@ -1309,7 +1311,7 @@ export default function DictationPage() {
 
             {result && !result.isCorrect && (showFull || settings.showAnswerImmediately) && fullAnswer && (
               <div style={{ marginTop: 8, fontSize: 16, lineHeight: 1.7 }}>
-                <FeedbackLine full={fullAnswer} words={result.words} />
+                <FeedbackLine full={fullAnswer} words={result.words} extra={result.extra} />
               </div>
             )}
 
@@ -1787,39 +1789,80 @@ function Checkbox({ checked, onChange, label }: {
   )
 }
 
-function FeedbackLine({ full, words }: {
+/**
+ * Tekshiruvdan keyingi asl matn — har so'z UCH holatdan birida.
+ *
+ * Ilgari ikki holat bor edi va **xato yozilgan** so'z bilan **umuman
+ * yozilmagan** so'z bir xil ko'rinardi. Foydalanuvchi bitta so'zni xato
+ * yozib qolganini yozmaganda, ekranda beshala so'z bir xil belgilanardi va
+ * "men qayerda xato qildim?" degan savol qolardi.
+ *
+ * Endi ko'z bilan darrov ajraladi:
+ *
+ *   to'g'ri      yashil
+ *   xato         QIZIL + yonida foydalanuvchi varianti chizib tashlangan
+ *   yozilmagan   kulrang, punktir — "bu yergacha yetib bormadingiz"
+ *
+ * Xato eng ko'zga tashlanadigani bo'lishi kerak: uni tuzatish mumkin,
+ * yozilmaganini esa shunchaki davom ettirish kerak.
+ */
+function FeedbackLine({ full, words, extra }: {
   full: string
-  words?: { w: string; found: boolean; dots: string }[]
+  words?: { w: string; state?: 'ok' | 'typo' | 'missing'; typed?: string; found: boolean }[]
+  extra?: string[]
 }) {
+  const t = useT()
   if (!words || words.length === 0) {
     return <span style={{ color: 'var(--text)', wordBreak: 'break-word' }}>{full}</span>
   }
+
+  const STYLES: Record<string, React.CSSProperties> = {
+    ok: { color: '#059669', fontWeight: 700 },
+    typo: {
+      color: '#DC2626', fontWeight: 700,
+      background: 'rgba(220, 38, 38, .10)', borderRadius: 4, padding: '0 3px',
+    },
+    missing: {
+      color: 'var(--text-secondary)', fontWeight: 500, opacity: .75,
+      textDecoration: 'underline', textDecorationStyle: 'dotted',
+      textDecorationColor: 'var(--text-secondary)', textUnderlineOffset: 3,
+    },
+  }
+  const TITLES: Record<string, string> = {
+    ok: t.dictWordOk, typo: t.dictWordTypo, missing: t.dictWordMissing,
+  }
+
   return (
-    <div style={{
-      display: 'flex', flexWrap: 'wrap', gap: '4px 6px',
-      lineHeight: 1.9, maxWidth: '100%', overflowWrap: 'anywhere',
-    }}>
-      {words.map((word, index) => {
-        const style: React.CSSProperties = word.found
-          ? { color: '#059669', fontWeight: 700 }
-          : {
-              color: 'var(--text-secondary)',
-              fontWeight: 500,
-              textDecoration: 'underline',
-              textDecorationColor: '#F59E0B',
-              textDecorationThickness: 2,
-              textUnderlineOffset: 3,
-              background: 'rgba(245, 158, 11, .08)',
-              borderRadius: 4,
-              padding: '0 3px',
-            }
-        return (
-          <span key={index} style={{ ...style, wordBreak: 'break-word' }}
-            title={word.found ? 'to\'g\'ri' : 'xato yoki tushib qolgan'}>
-            {word.w}
-          </span>
-        )
-      })}
+    <div>
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: '4px 6px',
+        lineHeight: 1.9, maxWidth: '100%', overflowWrap: 'anywhere',
+      }}>
+        {words.map((word, index) => {
+          // `state` yo'q bo'lsa (eski ma'lumot) — eski `found` ga tayanamiz.
+          const state = word.state ?? (word.found ? 'ok' : 'missing')
+          return (
+            <span key={index} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={{ ...STYLES[state], wordBreak: 'break-word' }} title={TITLES[state]}>
+                {word.w}
+              </span>
+              {/* Foydalanuvchi nima yozgani — xatoni TOPISH uchun eng muhimi. */}
+              {state === 'typo' && !!word.typed && (
+                <s style={{ color: 'var(--text-secondary)', fontSize: '.82em', fontWeight: 600 }}>
+                  {word.typed}
+                </s>
+              )}
+            </span>
+          )
+        })}
+      </div>
+
+      {!!extra?.length && (
+        <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
+          {t.dictExtraLabel}{' '}
+          <s style={{ fontWeight: 600 }}>{extra.join(', ')}</s>
+        </div>
+      )}
     </div>
   )
 }
