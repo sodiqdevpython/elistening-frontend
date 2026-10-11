@@ -294,6 +294,7 @@ function ActivateFromBalance({ choice }: { choice: NonNullable<WalletState['pend
       queryClient.invalidateQueries({ queryKey: ['wallet'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
       queryClient.invalidateQueries({ queryKey: ['my-limits'] })
+      queryClient.invalidateQueries({ queryKey: ['wallet-history'] })
     },
   })
   const cancel = useMutation({

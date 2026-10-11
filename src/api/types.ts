@@ -12,6 +12,12 @@ export interface DictationChunk {
   start_ms: number
   end_ms: number
   text: string
+  /** Yozish qiyin so'zlar (ism, joy nomi: "Osaka", "Josh Price") — gap
+   *  ustida ko'rsatiladi. */
+  hints?: string[]
+  /** Chunk qo'lda (tashqi manbada) tayyorlangan — Whisper body'si kabi
+   *  gapga birlashtirilmaydi va bo'linmaydi. */
+  fixed?: boolean
 }
 
 export interface Dictation {
@@ -479,6 +485,32 @@ export interface SubscriptionHistory {
     is_active: boolean
   } | null
   results: SubscriptionEventRow[]
+}
+
+/** `GET /api/billing/wallet/history/` — hamyon tarixi (backend `WalletTransaction`). */
+export interface WalletHistoryRow {
+  id: number
+  kind: 'deposit' | 'purchase' | 'refund' | 'adjust'
+  kind_label: string
+  provider: 'paynet' | 'click' | 'wallet' | 'admin'
+  provider_label: string
+  /** Ishorali: kirim +, chiqim − (so'mda). */
+  amount_uzs: number
+  /** Bo'sh — tarix jadvalidan oldingi to'lov (keyingi balans noma'lum). */
+  balance_after_uzs: number | null
+  plan: string | null
+  plan_name: string | null
+  months: number
+  note: string
+  occurred_at: string
+}
+
+export interface WalletHistory {
+  balance_uzs: number
+  /** Jami tushgan pul (bekor qilinganlari ayirilgan). */
+  total_in_uzs: number
+  total_spent_uzs: number
+  results: WalletHistoryRow[]
 }
 
 

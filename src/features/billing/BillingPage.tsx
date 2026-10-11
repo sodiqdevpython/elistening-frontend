@@ -40,6 +40,7 @@ export default function BillingPage() {
       queryClient.setQueryData(['wallet'], data)
       queryClient.invalidateQueries({ queryKey: ['me'] })
       queryClient.invalidateQueries({ queryKey: ['my-limits'] })
+      queryClient.invalidateQueries({ queryKey: ['wallet-history'] })
     },
     onError: (err) => setMessage(errorMessage(err, t.paymentsSoon)),
   })

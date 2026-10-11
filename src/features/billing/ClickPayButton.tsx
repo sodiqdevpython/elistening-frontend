@@ -90,6 +90,7 @@ export function ClickPayButton({ plan, months = 1, amountUzs, disabled }: {
     queryClient.invalidateQueries({ queryKey: ['wallet'] })
     queryClient.invalidateQueries({ queryKey: ['me'] })
     queryClient.invalidateQueries({ queryKey: ['my-limits'] })
+    queryClient.invalidateQueries({ queryKey: ['wallet-history'] })
   }, [paid, queryClient])
 
   const start = useMutation({

@@ -399,6 +399,11 @@ export async function fetchSubscriptionHistory() {
   return data
 }
 
+export async function fetchWalletHistory() {
+  const { data } = await api.get<import('./types').WalletHistory>('/billing/wallet/history/')
+  return data
+}
+
 export async function fetchMyLimits() {
   const { data } = await api.get<import('./types').LimitsSnapshot>('/me/limits/')
   return data

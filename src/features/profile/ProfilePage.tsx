@@ -17,6 +17,7 @@ import { displayHandle } from '@/utils/username'
 import LimitsCard from './LimitsCard'
 import PlanHistoryCard from './PlanHistoryCard'
 import SessionsCard from './SessionsCard'
+import WalletHistoryCard from './WalletHistoryCard'
 import { useLang, useT } from '@/i18n'
 import { fill, formatMinutes } from '@/utils/format'
 
@@ -506,6 +507,9 @@ export default function ProfilePage() {
 
         {/* Tarif tarixi — faqat saytda ko'rinadi (mobil ilovada kerak emas) */}
         <PlanHistoryCard />
+
+        {/* To'lovlar tarixi — qaysi kuni qancha tushgan / nimaga sarflangan */}
+        <WalletHistoryCard />
 
         {/* Kirgan qurilmalar / sessiyalar */}
         <SessionsCard />

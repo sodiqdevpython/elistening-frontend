@@ -558,6 +558,14 @@ diktant tugmasi asosiy va yagona.
 
 ### Chunk bo'lish — ikki pog'onali
 
+**Istisno — `fixed` body.** Agar `body` dagi HAR chunk `fixed: true` bo'lsa,
+quyidagi pog'onalarning birortasi ham ishlamaydi — chunk'lar aynan kelganicha
+ishlatiladi. Bu qo'lda tayyorlangan (tashqi manbadan import qilingan) kontent
+uchun: "Mary", "(797) 285-6959" kabi nuqtasiz, lekin alohida mashqlar
+`mergeIntoSentences` da bitta ulkan chunk'ga qo'shilib ketardi. Bunday
+chunk'da `hints: string[]` ham bo'lishi mumkin (ism, joy nomi) — textarea
+ustida `t.dictHintLabel` bilan ko'rsatiladi.
+
 Diktant chunklari `useMemo` da uch bosqichdan o'tadi:
 
 1. **`mergeIntoSentences`** — gap chegaralari (`.`/`!`/`?`) bo'yicha
@@ -761,6 +769,7 @@ ikki karta:
 |---|---|
 | `SessionsCard.tsx` | **Kirgan qurilmalar** — ro'yxat + "Chiqarish" / "Boshqalarini chiqarish" |
 | `PlanHistoryCard.tsx` | **Tarif tarixi** — qachon, qaysi tarif, qanday yo'l bilan, qachongacha |
+| `WalletHistoryCard.tsx` | **To'lovlar tarixi** — qaysi kuni qancha tushgan (Paynet/Click), nimaga sarflangan, har qatordan keyingi balans. `GET /billing/wallet/history/`. Pul harakatlanadigan joylar (`BillingPage`, `PaymentFlow`, `ClickPayButton`) `['wallet-history']` ni yangilaydi. Sana doim kun.oy.yil (en-US brauzerda "10/11" chalkashmasin) |
 
 **Sessiyalar.** Qoida serverda: bir vaqtda 1 brauzer + 1 telefon, oxirgi
 kirgan yutadi (`../backend/CLAUDE.md` → "Sessiyalar"). Karta yangi ruxsat

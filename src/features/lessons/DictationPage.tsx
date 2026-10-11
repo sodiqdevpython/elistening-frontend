@@ -673,7 +673,12 @@ export default function DictationPage() {
   //      rejimida uzun ham bo'lsa ham to'liq gapga tegmaymiz — so'zlar chegarada
   //      kesilib ketmasin.
   const chunks: DictationChunk[] = useMemo(() => {
-    const sentences = mergeIntoSentences(data?.body ?? [], data?.words_json)
+    // Qo'lda tayyorlangan body (`fixed`) — muharrir har mashqni o'zi ajratgan,
+    // jumladan nuqtasiz bo'laklarni ham ("Mary", "(797) 285-6959"). Quyidagi
+    // pog'onalar ularni bitta ulkan chunk'ga qo'shib yuborardi.
+    const body = data?.body ?? []
+    if (body.length > 0 && body.every((c) => c.fixed)) return body
+    const sentences = mergeIntoSentences(body, data?.words_json)
     // ASOSIY QOIDA (foydalanuvchi so'radi): agar bitta chunkda 20+ so'z bo'lsa,
     // 20-inchi so'zdan boshlab BIRINCHI uchragan tinish belgisi (vergul,
     // nuqta-vergul, tire va h.k.) da to'xtaymiz. Nuqta bo'lguncha kutmaymiz —
@@ -1272,6 +1277,17 @@ export default function DictationPage() {
               <span><b>Ctrl</b> — chunk'ni qayta qo'yish</span>
               <span><b>Enter</b> — tekshirish</span>
             </div>
+
+            {current?.hints?.length ? (
+              <div style={{
+                fontSize: 14, color: 'var(--text-secondary)', marginBottom: 10,
+                padding: '8px 12px', background: 'var(--bg-secondary)',
+                border: '1px dashed var(--border)', borderRadius: 10,
+              }}>
+                {t.dictHintLabel}:{' '}
+                <b style={{ color: 'var(--text)' }}>{current.hints.join(' · ')}</b>
+              </div>
+            ) : null}
 
             <textarea ref={textareaRef}
               value={answers[index] ?? ''}
