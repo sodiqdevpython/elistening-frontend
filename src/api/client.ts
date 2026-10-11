@@ -25,8 +25,28 @@ export const tokenStore = {
 
 import { unwrapProtected } from '@/utils/protect'
 
+const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)|\.local$/
+
+/** API manzili. Build'ga LOKAL manzil tushib qolsa (`.env` dagi
+ *  `http://192.168.1.178:8000/api` — 2026-10 da prod'da aynan shunday bo'ldi)
+ *  ommaviy saytda hamma API so'rovi foydalanuvchining O'Z lokal tarmog'iga
+ *  ketardi: hech kimda ishlamasdi va Chrome "wants to access other devices on
+ *  your local network" deb ruxsat so'rardi. Sahifa ommaviy domendan ochilgan
+ *  bo'lsa lokal manzil e'tiborsiz qoladi va o'sha domendagi `/api` ishlatiladi.
+ *  LAN'dan ochilganda (telefonda `http://192.168.x.x:5173`) — avvalgidek. */
+function apiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_URL || '/api'
+  try {
+    const target = new URL(configured, window.location.origin)
+    if (PRIVATE_HOST.test(target.hostname) && !PRIVATE_HOST.test(window.location.hostname)) {
+      return '/api'
+    }
+  } catch { /* nisbiy yoki g'alati qiymat — o'zgarishsiz */ }
+  return configured
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: apiBaseUrl(),
   // `X-Platform: web` — backend shu sarlavhaga qarab (a) sessiyani WEB
   // platformasiga bog'laydi (1 web + 1 mobil), (b) limitga yetilganda bot
   // xabari MOBIL uchun yuboriladi, web uchun esa sahifada BillingPage havolasi

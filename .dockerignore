@@ -1,0 +1,7 @@
+# Lokal dev sozlamasi image'ga KIRMASIN: `.env` da `VITE_API_URL` LAN IP
+# (http://192.168.1.178:8000/api). Prod qiymatlari faqat Dockerfile ARG'lari
+# orqali keladi (docker-compose `build.args`).
+.env
+.env.*
+node_modules
+dist
