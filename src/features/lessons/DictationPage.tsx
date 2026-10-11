@@ -12,6 +12,7 @@ import type {
 } from '@/api/types'
 import { PageHeader } from '@/components/Layout'
 import YouTubePlayer, { type YouTubePlayerHandle } from '@/components/YouTubePlayer'
+import { SplitHandle, useSplit } from '@/components/SplitHandle'
 import QuestionPositionBar from '@/components/QuestionPositionBar'
 import CoachTour, { firstVisible, type TourStep } from '@/components/CoachTour'
 import { qNum } from '@/utils/questionNumber'
@@ -647,6 +648,12 @@ export default function DictationPage() {
   // qayta ochsa `limited:false` (limit to'lgan bo'lsa ham), YANGI kontent
   // bo'lsa `limited:true`. Limit bo'lsa player o'rniga ogohlantiruvchi blok.
   const [limited, setLimited] = useState(false)
+  // Video | panel kengligi — foydalanuvchi surib o'zgartiradi, tanlov
+  // diktant va imtihon uchun alohida eslab qolinadi (`SplitHandle`).
+  const dictSplit = useSplit('listening.split.dictation', 62)
+  const testSplit = useSplit('listening.split.test', 54)
+  const dictLayoutRef = useRef<HTMLDivElement>(null)
+  const testLayoutRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dictation', slug],
@@ -1100,7 +1107,7 @@ export default function DictationPage() {
         </div>
       </div>
 
-      <div className="page" style={{ maxWidth: testMode ? 'none' : wideLayout ? 1280 : 720, padding: testMode ? '20px clamp(12px, 2vw, 32px) 40px' : undefined }}>
+      <div className="page" style={{ maxWidth: testMode ? 'none' : wideLayout ? 1760 : 720, padding: testMode ? '20px clamp(12px, 2vw, 32px) 40px' : undefined }}>
         <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
           {(['dictation', 'transcript'] as const).map((key) => (
             <button key={key} onClick={() => setTab(key)} aria-pressed={tab === key}
@@ -1172,7 +1179,9 @@ export default function DictationPage() {
           // diktant paneli (`.dict-layout`, global.css). Ilgari hammasi 720 px
           // lik bitta ustunda edi — video kichik, input esa video ostida
           // qolib, har gapda pastga-tepaga scroll qilishga to'g'ri kelardi.
-          <div className={wideLayout ? 'card dict-layout' : 'card'} style={{ padding: 'clamp(16px,3vw,24px)' }}>
+          <div ref={dictLayoutRef} className={wideLayout ? 'card dict-layout' : 'card'}
+            style={{ padding: 'clamp(16px,3vw,24px)', ...(wideLayout ? dictSplit.style : {}) }}>
+            {wideLayout && <SplitHandle containerRef={dictLayoutRef} split={dictSplit} />}
             <div className="dict-nav" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <button onClick={() => goTo(index - 1)} disabled={index === 0}
                 aria-label={t.prevAria} style={navBtn}>
@@ -1314,9 +1323,9 @@ export default function DictationPage() {
               placeholder={t.dictationPlaceholder} aria-label={t.dictationTabLabel}
               autoFocus
               style={{
-                width: '100%', minHeight: 96,
+                width: '100%', minHeight: wideLayout ? 130 : 96,
                 border: `1.5px solid ${result?.isCorrect ? '#10B981' : result ? '#F59E0B' : 'var(--border)'}`,
-                borderRadius: 14, padding: 16, fontSize: 16, color: 'var(--text)',
+                borderRadius: 14, padding: 16, fontSize: wideLayout ? 18 : 16, color: 'var(--text)',
                 background: 'var(--bg-secondary)', outline: 'none', resize: 'vertical',
                 lineHeight: 1.6,
               }} />
@@ -1424,7 +1433,7 @@ export default function DictationPage() {
         {tab === 'dictation' && testMode && (
           // Grid `global.css` dagi `.test-layout` da — u yerda tor ekran
           // uchun media query ham bor (video tepada, savollar pastda).
-          <div className="test-layout">
+          <div className="test-layout" ref={testLayoutRef} style={testSplit.style}>
             {/* Chap ustun: video + tagida bar/toolbar. Sticky —
                 foydalanuvchi o'ngdagi savollarni scroll qilganda video
                 yuqorida qolib turadi. */}
@@ -1497,6 +1506,7 @@ export default function DictationPage() {
             {/* O'ng ustun: SCROLLABLE savollar paneli. `max-height` +
                 `overflow-y: auto` + pastdagi fade — foydalanuvchi pastda
                 yana content borligini ko'radi. */}
+            <SplitHandle containerRef={testLayoutRef} split={testSplit} />
             <div className="test-layout-panel">
               <TestView
                 mcq={data.mcq_questions ?? []}

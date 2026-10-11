@@ -95,7 +95,19 @@ Chunk sarlavhasi navigatsiya: `<` prev, `1 / 21`, `>` next
 
 ### Joylashuv — video darsida ikki ustun (`.dict-layout`)
 
-`wideLayout` (YouTube video bor va limit bloklamagan): sahifa `maxWidth 1280`,
+**Ajratgich (`components/SplitHandle.tsx`)** — diktantda ham (`.dict-layout`),
+imtihonda ham (`.test-layout`) video va panel orasida suriladigan chiziq.
+Kenglik `--split-a/-b` CSS o'zgaruvchilari orqali (inline `gridTemplateColumns`
+EMAS — u media query'dan ustun turib telefonda bitta ustunni buzardi).
+Tanlov `localStorage`: `listening.split.dictation` (default 62%),
+`listening.split.test` (default 54%); chegara 30–75%, ikki marta bosish —
+asl holi, ←/→ — klaviatura. Surayotganda `body.split-dragging` iframe'ni
+sichqonchadan uzadi. ≤1024px da yashirin.
+
+**Footer doim pastda:** `.app-bg` flex ustun, `main` — `flex: 1 0 auto`
+(`Layout.tsx`). Qisqa sahifada footer ekran o'rtasida osilib qolmaydi.
+
+`wideLayout` (YouTube video bor va limit bloklamagan): sahifa `maxWidth 1760`,
 kartochka uch qism — `.dict-nav`, `.dict-media`, `.dict-panel` — grid'da
 "chapda katta sticky video, o'ngda navigatsiya + diktant paneli"
 (dailydictation uslubi). ≤1024px da bitta ustun: nav → video → panel. Audio

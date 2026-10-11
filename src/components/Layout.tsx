@@ -211,7 +211,7 @@ export default function Layout() {
         </div>
       )}
 
-      <main style={{ position: 'relative', zIndex: 1 }}>
+      <main style={{ position: 'relative', zIndex: 1, flex: '1 0 auto' }}>
         <Outlet />
       </main>
 

@@ -32,7 +32,7 @@ export const STRINGS = {
     modeIeltsCta: 'Testni boshlash',
     modeNewsCta: 'Tinglashni boshlash',
 
-    allTopicsTitle: 'Boshqa mavzular', lessonsUnit: 'dars', videoBadge: 'VIDEO', videoViewsUnit: 'ko‘rishlar',
+    allTopicsTitle: 'Faqat diktantlar', lessonsUnit: 'dars', videoBadge: 'VIDEO', videoViewsUnit: 'ko‘rishlar',
     dictationOnlyNote: 'Diktant mashqlari faqat shu bo‘limdagi darslarda bo‘ladi.',
     breadcrumbAll: 'Barcha mavzular', searchPlaceholder: 'Qidirish...',
     allLevelsOption: 'Barcha darajalar', chunksUnit: 'qism',
@@ -45,6 +45,7 @@ export const STRINGS = {
     correctLabel: 'To‘g‘ri! Ajoyib.',
     dictationPlaceholder: 'Eshitganingizni yozing...',
     dictHintLabel: 'Yordam',
+    splitHandleLabel: 'Video va panel kengligini surib o‘zgartiring (ikki marta bosish — asl holi)',
     tipText: 'Har kuni 15–30 daqiqa mashq qiling — natija tezroq ko‘rinadi.',
     lessonDone: 'Dars tugadi! Barcha qismlar bajarildi.',
 
@@ -376,7 +377,7 @@ export const STRINGS = {
     modeIeltsCta: 'Start the test',
     modeNewsCta: 'Start listening',
 
-    allTopicsTitle: 'Other topics', lessonsUnit: 'lessons', videoBadge: 'VIDEO', videoViewsUnit: 'views',
+    allTopicsTitle: 'All dictations', lessonsUnit: 'lessons', videoBadge: 'VIDEO', videoViewsUnit: 'views',
     dictationOnlyNote: 'Dictation exercises exist only in the lessons of this section.',
     breadcrumbAll: 'All topics', searchPlaceholder: 'Search...',
     allLevelsOption: 'All levels', chunksUnit: 'chunks',
@@ -387,6 +388,7 @@ export const STRINGS = {
     checkBtn: 'Check', skipBtn: 'Skip', incorrectLabel: 'Incorrect, try again',
     correctLabel: 'Correct! Well done.', dictationPlaceholder: 'Type what you hear...',
     dictHintLabel: 'Hint',
+    splitHandleLabel: 'Drag to resize the video and the panel (double-click to reset)',
     tipText: 'Practice 15–30 minutes every day for faster results.',
     lessonDone: 'Lesson complete! All chunks done.',
 
