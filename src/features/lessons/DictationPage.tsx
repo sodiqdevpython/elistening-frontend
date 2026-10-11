@@ -77,6 +77,13 @@ const CHUNK_LEAD_MS = 200
 // oxirgi so'zning tovushi to'liq eshitilishini kafolatlaydi. snapChunksToWords
 // bilan birga ishlaydi — u chunk end'ni aynan so'z.end ga tirashadi.
 const CHUNK_TAIL_MS = 250
+
+/** Yuqoridagi padding faqat Whisper vaqtlari uchun. Qo'lda tayyorlangan
+ *  (`fixed`, tashqi manbadan) chunk'ning vaqtlari muharrir qo'ygan aniq
+ *  chegaralar — margin qo'shilsa qo'shni gapning boshi/oxiri eshitilardi. */
+function chunkPadding(chunk: DictationChunk): { lead: number; tail: number } {
+  return chunk.fixed ? { lead: 0, tail: 0 } : { lead: CHUNK_LEAD_MS, tail: CHUNK_TAIL_MS }
+}
 // To'g'ri javob berilganda 500 ms yashil ✓ ko'rsatib turib keyingi chunk'ga
 // o'tamiz — foydalanuvchi to'g'ri javobini ko'rib olsin.
 const AUTO_NEXT_MS = 500
@@ -716,6 +723,9 @@ export default function DictationPage() {
   )
   const hasYouTube = Boolean(youtubeId)
   const hasAudio = Boolean(data?.audio_url)
+  // Ikki ustunli joylashuv faqat VIDEO darsida — audio darsida pleyer ingichka
+  // chiziq, unga alohida ustun kerak emas.
+  const wideLayout = hasYouTube && !limited
 
   /** Videoni/audioni berilgan soniyaga surib ijro qiladi.
    *  "Isbot" tugmasi ham, savol pozitsiyasi bari ham shundan foydalanadi.
@@ -851,13 +861,14 @@ export default function DictationPage() {
   }, [settings.playbackRate, current?.start_ms])
 
   useEffect(() => {
-    if (current) stopAtMsRef.current = current.end_ms + CHUNK_TAIL_MS
+    if (current) stopAtMsRef.current = current.end_ms + chunkPadding(current).tail
   }, [current?.start_ms, current?.end_ms])
 
   const playChunk = useCallback(() => {
     if (!current) return
-    const startMs = Math.max(0, current.start_ms - CHUNK_LEAD_MS)
-    const endMs = current.end_ms + CHUNK_TAIL_MS
+    const pad = chunkPadding(current)
+    const startMs = Math.max(0, current.start_ms - pad.lead)
+    const endMs = current.end_ms + pad.tail
     stopAtMsRef.current = endMs
     // Audio ustunlik: audio bo'lsa audio, aks holda YouTube.
     if (audioRef.current) {
@@ -1089,7 +1100,7 @@ export default function DictationPage() {
         </div>
       </div>
 
-      <div className="page" style={{ maxWidth: testMode ? 'none' : 720, padding: testMode ? '20px clamp(12px, 2vw, 32px) 40px' : undefined }}>
+      <div className="page" style={{ maxWidth: testMode ? 'none' : wideLayout ? 1280 : 720, padding: testMode ? '20px clamp(12px, 2vw, 32px) 40px' : undefined }}>
         <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
           {(['dictation', 'transcript'] as const).map((key) => (
             <button key={key} onClick={() => setTab(key)} aria-pressed={tab === key}
@@ -1157,8 +1168,12 @@ export default function DictationPage() {
           display: tab === 'dictation' && !isFinished && current && !testMode ? 'block' : 'none',
         }}>
           {current && (
-          <div className="card" style={{ padding: 'clamp(16px,3vw,24px)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          // Video darsida keng ekranda IKKI ustun: chapda katta video, o'ngda
+          // diktant paneli (`.dict-layout`, global.css). Ilgari hammasi 720 px
+          // lik bitta ustunda edi — video kichik, input esa video ostida
+          // qolib, har gapda pastga-tepaga scroll qilishga to'g'ri kelardi.
+          <div className={wideLayout ? 'card dict-layout' : 'card'} style={{ padding: 'clamp(16px,3vw,24px)' }}>
+            <div className="dict-nav" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <button onClick={() => goTo(index - 1)} disabled={index === 0}
                 aria-label={t.prevAria} style={navBtn}>
                 <ChevronIcon dir="left" color="var(--text-secondary)" size={18} />
@@ -1185,6 +1200,7 @@ export default function DictationPage() {
               </select>
             </div>
 
+            <div className="dict-media">
             {limited ? (
               /* Kunlik limit — player o'rniga ogohlantirish (mobil bilan bir xil).
                  Kontent umuman ko'rsatilmaydi: player, poster va StartCard ham
@@ -1244,7 +1260,9 @@ export default function DictationPage() {
                 border: '1px solid var(--border)', borderRadius: 10,
               }}>{t.noMediaAttached}</div>
             )}
+            </div>
 
+            <div className="dict-panel">
             {!started && !testMode && !limited && (
               <StartCard
                 title={data.title}
@@ -1327,7 +1345,8 @@ export default function DictationPage() {
 
             {result && !result.isCorrect && (showFull || settings.showAnswerImmediately) && fullAnswer && (
               <div style={{ marginTop: 8, fontSize: 16, lineHeight: 1.7 }}>
-                <FeedbackLine full={fullAnswer} words={result.words} extra={result.extra} />
+                <FeedbackLine full={fullAnswer} words={result.words} extra={result.extra}
+                  mask={!settings.showFullAnswer && !showFull} />
               </div>
             )}
 
@@ -1395,6 +1414,7 @@ export default function DictationPage() {
               </div>
             )}
             </>)}
+            </div>
           </div>
           )}
         </div>
@@ -1822,15 +1842,23 @@ function Checkbox({ checked, onChange, label }: {
  * Xato eng ko'zga tashlanadigani bo'lishi kerak: uni tuzatish mumkin,
  * yozilmaganini esa shunchaki davom ettirish kerak.
  */
-function FeedbackLine({ full, words, extra }: {
+/** `mask` — "Always show the full answer" o'chiq: birinchi XATO so'zgacha
+ *  (o'zi ham) ochiq, undan keyingisi `*****` (harf soni bilan). Foydalanuvchi
+ *  qayerda adashganini ko'radi, lekin gapning qolgani oldindan ochilib
+ *  qolmaydi — dailydictation'dagi kabi. */
+function FeedbackLine({ full, words, extra, mask = false }: {
   full: string
   words?: { w: string; state?: 'ok' | 'typo' | 'missing'; typed?: string; found: boolean }[]
   extra?: string[]
+  mask?: boolean
 }) {
   const t = useT()
   if (!words || words.length === 0) {
     return <span style={{ color: 'var(--text)', wordBreak: 'break-word' }}>{full}</span>
   }
+  const stateOf = (word: (typeof words)[number]) => word.state ?? (word.found ? 'ok' : 'missing')
+  const firstError = words.findIndex((word) => stateOf(word) !== 'ok')
+  const revealUpTo = mask && firstError >= 0 ? firstError : words.length - 1
 
   const STYLES: Record<string, React.CSSProperties> = {
     ok: { color: '#059669', fontWeight: 700 },
@@ -1855,8 +1883,15 @@ function FeedbackLine({ full, words, extra }: {
         lineHeight: 1.9, maxWidth: '100%', overflowWrap: 'anywhere',
       }}>
         {words.map((word, index) => {
+          if (index > revealUpTo) {
+            return (
+              <span key={index} aria-hidden style={{ color: 'var(--text-secondary)', letterSpacing: 1 }}>
+                {'*'.repeat(word.w.length)}
+              </span>
+            )
+          }
           // `state` yo'q bo'lsa (eski ma'lumot) — eski `found` ga tayanamiz.
-          const state = word.state ?? (word.found ? 'ok' : 'missing')
+          const state = stateOf(word)
           return (
             <span key={index} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
               <span style={{ ...STYLES[state], wordBreak: 'break-word' }} title={TITLES[state]}>

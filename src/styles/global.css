@@ -61,6 +61,30 @@ input, textarea, select { font-family: inherit; }
   .test-layout-panel { max-height: none; overflow-y: visible; padding-right: 0; }
 }
 
+/* Diktant — VIDEO darsi (`DictationPage`, `wideLayout`): chapda katta video,
+   o'ngda navigatsiya + diktant paneli (dailydictation uslubida). Video
+   sticky — panel uzaysa ham ko'z oldida qoladi. Tor ekranda bitta ustun:
+   navigatsiya → video → panel (avvalgi tartib). */
+.dict-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-areas: "media nav" "media panel";
+  grid-template-rows: auto 1fr;
+  column-gap: clamp(16px, 2vw, 28px);
+  align-items: start;
+}
+.dict-layout > .dict-nav { grid-area: nav; }
+.dict-layout > .dict-media { grid-area: media; position: sticky; top: 16px; min-width: 0; }
+.dict-layout > .dict-panel { grid-area: panel; min-width: 0; }
+@media (max-width: 1024px) {
+  .dict-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "nav" "media" "panel";
+    grid-template-rows: auto;
+  }
+  .dict-layout > .dict-media { position: static; }
+}
+
 /* Diktant sahifasidagi ikki tanlov kartochkasi — Imtihon vs Diktant.
    Ikkalasi bir xil styling: neutral fon, neutral chegara, neutral matn.
    Hover yoki fokusda yashil aksent — foydalanuvchi qaysi biriga bosishni

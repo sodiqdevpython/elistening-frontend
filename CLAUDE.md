@@ -88,9 +88,20 @@ Chunk sarlavhasi navigatsiya: `<` prev, `1 / 21`, `>` next
 - Audio doim mount holida (`display:none` bilan yashirish)
 - Chunk almashsa audio boshiga qo'yiladi va avtomatik yangraydi
 - Chunk oxirida majburiy to'xtash: `setInterval(50 ms)` + `timeupdate`
-- Chunk padding: `CHUNK_LEAD_MS = 0` (Whisper aniq boshlaydi),
-  `CHUNK_TAIL_MS = 700 ms` — oxirgi so'zning tovushi to'liq eshitilishi uchun
-  (masalan "Rita" ning oxirgi bo'g'ini kesilib "Ri..." bo'lib qolmasin)
+- Chunk padding: `CHUNK_LEAD_MS = 200`, `CHUNK_TAIL_MS = 250` — Whisper
+  vaqtlari so'z boshini/oxirini biroz kesadi. **`fixed` chunk'da (tashqi
+  manbadan import) padding 0** (`chunkPadding()`): u yerdagi vaqtlar muharrir
+  qo'ygan aniq chegaralar, margin qo'shni gapni eshittirardi.
+
+### Joylashuv — video darsida ikki ustun (`.dict-layout`)
+
+`wideLayout` (YouTube video bor va limit bloklamagan): sahifa `maxWidth 1280`,
+kartochka uch qism — `.dict-nav`, `.dict-media`, `.dict-panel` — grid'da
+"chapda katta sticky video, o'ngda navigatsiya + diktant paneli"
+(dailydictation uslubi). ≤1024px da bitta ustun: nav → video → panel. Audio
+darsi o'zgarmagan (720 px, bitta ustun — pleyer ingichka chiziq). Ilgari
+video ham 720 px ustunda edi: kichik, input video ostida qolib scroll talab
+qilardi.
 
 ### Grading — mijozda (`utils/grade.ts`)
 
@@ -113,6 +124,11 @@ ortiqcha). Sabab va chetki holatlar `grade.ts` boshidagi izohda.
 `FeedbackLine` buni rang bilan ko'rsatadi: yashil / **qizil + foydalanuvchi
 varianti chizib tashlangan** / kulrang punktir. Ostida `extra` — matnda
 umuman yo'q so'zlar.
+
+**Niqob (`mask`):** "Har doim to'liq javobni ko'rsat" o'chiq va "Javobni
+ko'rsatish" bosilmagan bo'lsa — BIRINCHI xato so'zgacha (o'zi ham) ochiq,
+qolgani harf soni bilan `*****` (dailydictation kabi). Gapning qolgani oldindan
+ochilib qolmaydi.
 
 ### Klaviatura yorliqlari
 
