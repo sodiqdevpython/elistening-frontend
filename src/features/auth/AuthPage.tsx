@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { checkUsername, setupProfile, updateAvatar, verifyOtp } from '@/api/endpoints'
+import { useQuery } from '@tanstack/react-query'
+import { checkUsername, fetchSiteConfig, setupProfile, updateAvatar, verifyOtp } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
 import { PageHeader } from '@/components/Layout'
 import { HeadphoneIcon } from '@/components/ui'
-import HCaptchaBox from '@/components/HCaptchaBox'
+import TurnstileBox from '@/components/TurnstileBox'
 import { useAuth } from '@/store/auth'
 import { useLang, useT } from '@/i18n'
+import { useTheme } from '@/theme/ThemeProvider'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'elistening_bot'
-// Bo'sh bo'lsa captcha o'chiq (lokal). Prod'da build vaqtida beriladi.
-const HCAPTCHA_SITEKEY = import.meta.env.VITE_HCAPTCHA_SITEKEY || ''
 
 /**
  * Kirish oqimi (soddalashtirilgan):
@@ -48,8 +48,21 @@ export default function AuthPage() {
   const [uiLang, setUiLang] = useState<'uz' | 'en'>(lang)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  // hCaptcha tokeni. Captcha o'chiq bo'lsa 'disabled' (login bloklanmaydi).
+  // Turnstile tokeni. Captcha o'chiq bo'lsa 'disabled' (login bloklanmaydi).
   const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaReset, setCaptchaReset] = useState(0)
+  const { theme } = useTheme()
+  // Sitekey serverdan (navbar bilan bitta so'rov). Yuklanguncha `undefined` —
+  // kod yuborilmaydi; so'rov yiqilsa captcha o'chiq deb hisoblanadi (server
+  // baribir o'zi tekshiradi).
+  const { data: siteConfig, isError: configFailed } = useQuery({
+    queryKey: ['site-config'],
+    queryFn: fetchSiteConfig,
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+  })
+  const captchaSitekey = siteConfig ? siteConfig.captcha_sitekey || '' : configFailed ? '' : undefined
+  const codeReady = /^\d{6}$/.test(digits.join(''))
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
   const confirm = useCallback(async (code: string) => {
@@ -70,11 +83,11 @@ export default function AuthPage() {
       setDigits(['', '', '', '', '', ''])
       inputs.current[0]?.focus()
       // Token bir martalik — xatodan keyin captchani qayta yechish kerak.
-      if (HCAPTCHA_SITEKEY) { setCaptchaToken(''); window.hcaptcha?.reset() }
+      if (captchaSitekey) { setCaptchaToken(''); setCaptchaReset((n) => n + 1) }
     } finally {
       setBusy(false)
     }
-  }, [navigate, signIn, t.authInvalidCode, captchaToken])
+  }, [navigate, signIn, t.authInvalidCode, captchaToken, captchaSitekey])
 
   // 6 xonali kod to'liq kiritilishi bilan avtomatik yuboramiz — LEKIN captcha
   // yechilgan bo'lsa (yoki o'chiq bo'lsa). Aks holda kutamiz.
@@ -212,10 +225,21 @@ export default function AuthPage() {
                 ))}
               </div>
 
-              {/* Captcha — VITE_HCAPTCHA_SITEKEY berilgan bo'lsa ko'rinadi.
-                  Yechilmaguncha 6 raqamli kod yuborilmaydi. */}
+              {/* Captcha — serverda kalit berilgan bo'lsa ko'rinadi.
+                  Tekshiruv o'tmaguncha 6 raqamli kod yuborilmaydi. */}
               <div style={{ margin: '4px 0 14px' }}>
-                <HCaptchaBox sitekey={HCAPTCHA_SITEKEY} onToken={setCaptchaToken} />
+                <TurnstileBox sitekey={captchaSitekey} lang={lang} theme={theme}
+                  resetKey={captchaReset} onToken={setCaptchaToken} />
+                {/* Captcha MAJBURIY ekani ko'rinib tursin: o'tilmaguncha izoh,
+                    kod to'liq kiritilib kutib qolgan bo'lsa — ajratib. */}
+                {captchaSitekey && !captchaToken && (
+                  <div style={{
+                    marginTop: 8, fontSize: 12.5, fontWeight: codeReady ? 700 : 500,
+                    color: codeReady ? '#B45309' : 'var(--text-secondary)',
+                  }}>
+                    {codeReady ? t.authCaptchaWaiting : t.authCaptchaRequired}
+                  </div>
+                )}
               </div>
 
               <div style={{

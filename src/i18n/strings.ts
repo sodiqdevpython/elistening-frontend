@@ -118,6 +118,8 @@ export const STRINGS = {
     authNamePlaceholder: 'Ismingiz', authLevelLabel: 'Darajangiz',
     authLanguageLabel: 'Sayt tili',
     authSaveBtn: 'Saqlash va boshlash', authInvalidCode: 'Kod noto‘g‘ri yoki muddati tugagan',
+    authCaptchaRequired: 'Kirish uchun yuqoridagi xavfsizlik tekshiruvidan o‘ting',
+    authCaptchaWaiting: 'Kod tayyor — tekshiruvdan o‘tishingiz bilan yuboriladi',
 
     loggedOutTitle: 'Profilga kirilmagan',
     loggedOutDesc: 'Progress va saqlangan darslarni ko‘rish uchun kiring.',
@@ -472,6 +474,8 @@ export const STRINGS = {
     authNamePlaceholder: 'Your name', authLevelLabel: 'Your level',
     authLanguageLabel: 'Site language',
     authSaveBtn: 'Save and start', authInvalidCode: 'The code is wrong or has expired',
+    authCaptchaRequired: 'Complete the security check above to sign in',
+    authCaptchaWaiting: 'Code ready — it will be sent as soon as the check passes',
 
     loggedOutTitle: 'Not signed in',
     loggedOutDesc: 'Sign in to see your progress and bookmarked lessons.',

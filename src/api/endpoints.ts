@@ -212,9 +212,10 @@ export async function fetchHome() {
   return data
 }
 
-/** Global sayt sozlamasi — navbar "Bog'lanish" uchun Telegram username. */
+/** Global sayt sozlamasi — navbar "Bog'lanish" uchun Telegram username va
+ *  login captcha'sining sitekey'i (bo'sh = captcha o'chiq). */
 export async function fetchSiteConfig() {
-  const { data } = await api.get<{ contact_telegram: string }>('/config/')
+  const { data } = await api.get<{ contact_telegram: string; captcha_sitekey?: string }>('/config/')
   return data
 }
 
