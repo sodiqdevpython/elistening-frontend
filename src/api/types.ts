@@ -45,6 +45,8 @@ export interface Dictation {
   /** Kirgan foydalanuvchining bu diktantdagi progressi (foizda).
    *  Null bo'lsa — hali ishlanmagan yoki foydalanuvchi kirmagan. */
   my_progress_percent: number | null
+  /** ✓ tugatilgan, eng yaxshi natija, joriy foiz. Anonim — null. */
+  my_progress?: MyLessonProgress | null
 }
 
 /** Whisper'dan kelgan so'z-darajasidagi timestamp (sekundlarda). */
@@ -57,17 +59,37 @@ export interface DictationWord {
 export interface DictationDetail extends Dictation {
   body: DictationChunk[]
   words_json?: DictationWord[]   // Chunk bo'lishida aniq timestamp uchun
-  my_progress?: DictationProgress | null
   // AI listening test — bo'sh bo'lsa test rejimi ko'rinmaydi.
   mcq_questions?: ShortMcqQuestion[]
   tfng_questions?: ShortTfngQuestion[]
   fill_gap_questions?: ShortFillGapQuestion[]
 }
 
+/** Har gapning BIRINCHI tekshiruvi — aniqlik shundan hisoblanadi. */
+export type FirstTry = 'ok' | 'wrong' | 'skipped'
+
 export interface DictationProgress {
+  // Joriy urinish ("Davom ettirish" shundan tiklanadi)
   percent: number
   last_index: number
   draft_answers: Record<string, unknown>
+  first_try?: Record<string, FirstTry>
+  active_seconds?: number
+  // Tugatilganlar (faqat o'qiladi — `/complete/` yozadi)
+  completed_at?: string | null
+  completions?: number
+  best_accuracy?: number | null
+  last_accuracy?: number | null
+  last_active_seconds?: number
+}
+
+/** Ro'yxatdagi kartochka uchun — kirgan foydalanuvchining shu darsdagi holati. */
+export interface MyLessonProgress {
+  percent: number
+  completed: boolean
+  completions: number
+  best_accuracy: number | null
+  completed_at: string | null
 }
 
 export interface DictationType {

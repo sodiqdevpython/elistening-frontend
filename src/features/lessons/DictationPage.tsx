@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  addDictationPlayedTime, fetchDictation, fetchDictationReportReasons,
-  fetchMyDictationFeedback, reactToDictation, registerDictationView,
-  reportDictation, reportDictationQuestion,
+  addDictationPlayedTime, completeDictation, fetchDictation, fetchDictationProgress,
+  fetchDictationReportReasons, fetchMyDictationFeedback, reactToDictation,
+  registerDictationView, reportDictation, reportDictationQuestion, saveDictationProgress,
 } from '@/api/endpoints'
 import type {
-  DictationChunk, DictationWord,
+  DictationChunk, DictationWord, FirstTry,
   ShortMcqQuestion, ShortTfngQuestion, ShortFillGapQuestion,
 } from '@/api/types'
+import { fill } from '@/utils/format'
 import { PageHeader } from '@/components/Layout'
 import YouTubePlayer, { type YouTubePlayerHandle } from '@/components/YouTubePlayer'
 import { SplitHandle, useSplit } from '@/components/SplitHandle'
@@ -91,6 +92,12 @@ const AUTO_NEXT_MS = 500
 // Skip bosilganda foydalanuvchi kanonik javobni ko'rib olishi uchun
 // 800 ms kutamiz — keyin avtomatik keyingi chunk'ga o'tadi.
 const SKIP_NEXT_MS = 800
+// Joriy urinish ("Davom ettirish" uchun) oxirgi o'zgarishdan shuncha keyin
+// saqlanadi — har harfda emas.
+const PROGRESS_SAVE_MS = 2000
+// Faol vaqt: tab ko'rinib turgan VA oxirgi tugma/bosishdan shuncha o'tmagan
+// bo'lsa sanaladi. Audio tinglash ham ish — shu bois chegara keng.
+const IDLE_AFTER_MS = 90_000
 
 // Qisqartmalar — bularning nuqtasi gap oxirini bildirmaydi.
 const ABBREVIATIONS = new Set([
@@ -632,6 +639,18 @@ export default function DictationPage() {
   const [finished, setFinished] = useState(false)
   // Foydalanuvchi "Boshlash" tugmasini bosgunga qadar avtomatik ijro yo'q.
   const [started, setStarted] = useState(false)
+  // Har gapning BIRINCHI tekshiruvi — aniqlik shundan (qayta urinib
+  // to'g'rilangan gap "ok" emas). "Davom ettirish"da serverdan tiklanadi.
+  const [firstTry, setFirstTry] = useState<Record<number, FirstTry>>({})
+  // Tugatilgan urinish natijasi — tugatish ekrani uchun.
+  const [runSummary, setRunSummary] = useState<{
+    accuracy: number; ok: number; skipped: number; seconds: number
+    best: number | null; completions: number
+  } | null>(null)
+  const activeSecondsRef = useRef(0)
+  const lastInteractionRef = useRef(Date.now())
+  const saveTimerRef = useRef<number | null>(null)
+  const completedRunRef = useRef(false)
   // Listening test rejimi — Start ekranidagi "Listening test" tugmasi bosilsa
   // yoqiladi va diktant UI o'rniga savollar paneli chiqadi.
   const [testMode, setTestMode] = useState(false)
@@ -664,6 +683,16 @@ export default function DictationPage() {
     // yuklanmaydi. (Like/view alohida endpoint orqali, bu keshga bog'liq emas.)
     staleTime: 10 * 60_000,
     gcTime: 15 * 60_000,
+  })
+
+  // Saqlangan joriy urinish ("Davom ettirish") va tugatilganlar statistikasi.
+  // Har ochilishda yangidan — boshqa qurilmada davom ettirilgan bo'lishi mumkin.
+  const queryClient = useQueryClient()
+  const { data: savedProgress } = useQuery({
+    queryKey: ['dictation-progress', slug],
+    queryFn: () => fetchDictationProgress(slug),
+    enabled: isLoggedIn && !!slug,
+    staleTime: 0,
   })
 
   // Kontent ochilganda bir marta: `views`++ va kunlik limit tekshiruvi.
@@ -860,6 +889,88 @@ export default function DictationPage() {
   const isFinished = finished || (chunks.length > 0 && solved === chunks.length)
   const isLastChunk = chunks.length > 0 && index === chunks.length - 1
 
+  // ── Faol vaqt ─────────────────────────────────────────────────────────
+  // Tab ko'rinib turgan va foydalanuvchi yaqinda (IDLE_AFTER_MS) biror tugma
+  // bosgan soniyalargina sanaladi — ochiq qoldirilgan tab vaqt yig'maydi.
+  useEffect(() => {
+    if (!started || isFinished || testMode) return
+    const touch = () => { lastInteractionRef.current = Date.now() }
+    touch()
+    window.addEventListener('keydown', touch)
+    window.addEventListener('pointerdown', touch)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible'
+        && Date.now() - lastInteractionRef.current < IDLE_AFTER_MS) {
+        activeSecondsRef.current += 1
+      }
+    }, 1000)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('keydown', touch)
+      window.removeEventListener('pointerdown', touch)
+    }
+  }, [started, isFinished, testMode])
+
+  // ── Joriy urinishni saqlash ("Davom ettirish" uchun) ───────────────────
+  // Oxirgi o'zgarishdan PROGRESS_SAVE_MS keyin bitta so'rov. Boshlanmagan
+  // sahifa hech narsa yozmaydi — aks holda shunchaki ochish serverdagi
+  // saqlangan joyni bo'sh holat bilan bosib ketardi.
+  const latestSaveRef = useRef<(() => void) | null>(null)
+  latestSaveRef.current = () => {
+    if (!chunks.length) return
+    void saveDictationProgress(slug, {
+      percent,
+      last_index: index,
+      draft_answers: answers,
+      first_try: firstTry,
+      active_seconds: activeSecondsRef.current,
+    }).catch(() => {})
+  }
+  useEffect(() => {
+    if (!isLoggedIn || !started || isFinished || testMode || !chunks.length) return
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null
+      latestSaveRef.current?.()
+    }, PROGRESS_SAVE_MS)
+  }, [answers, firstTry, index, isLoggedIn, started, isFinished, testMode, chunks.length])
+  // Sahifadan chiqib ketilsa — kutib turgan saqlash darrov yuboriladi.
+  useEffect(() => () => {
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+      latestSaveRef.current?.()
+    }
+  }, [])
+
+  // ── Tugatish ───────────────────────────────────────────────────────────
+  // Aniqlik = birinchi urinishda to'g'ri yozilgan gaplar ulushi (baholash
+  // mijozda). Server natijani saqlaydi va joriy urinishni tozalaydi.
+  useEffect(() => {
+    if (!isFinished || completedRunRef.current || testMode || !chunks.length) return
+    completedRunRef.current = true
+    if (saveTimerRef.current) {  // eski holat tugatishdan KEYIN yetib kelmasin
+      window.clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    const ok = chunks.filter((_, i) => firstTry[i] === 'ok').length
+    const skipped = chunks.filter((_, i) => firstTry[i] === 'skipped').length
+    const accuracy = Math.round((ok / chunks.length) * 100)
+    const seconds = activeSecondsRef.current
+    setRunSummary({ accuracy, ok, skipped, seconds, best: null, completions: 0 })
+    if (!isLoggedIn) return
+    completeDictation(slug, { accuracy, active_seconds: seconds })
+      .then((progress) => {
+        setRunSummary((s) => s && {
+          ...s, best: progress.best_accuracy ?? null, completions: progress.completions ?? 0,
+        })
+        queryClient.setQueryData(['dictation-progress', slug], progress)
+        // Darslar ro'yxatidagi ✓ belgisi qaytganda darrov ko'rinsin.
+        void queryClient.invalidateQueries({ queryKey: ['dictations'] })
+      })
+      .catch(() => {})
+  }, [isFinished, testMode, chunks, firstTry, isLoggedIn, slug, queryClient])
+
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = settings.playbackRate
@@ -971,6 +1082,8 @@ export default function DictationPage() {
     const given = answers[index] ?? ''
     const result = gradeDictation(fullAnswer, given)
     setResults((r) => ({ ...r, [index]: result }))
+    // Faqat BIRINCHI tekshiruv hisoblanadi — keyin to'g'rilash aniqlikni oshirmaydi.
+    setFirstTry((f) => (index in f ? f : { ...f, [index]: result.isCorrect ? 'ok' : 'wrong' }))
     if (result.isCorrect) {
       setAnswers((a) => ({ ...a, [index]: fullAnswer }))
       // Vaqti aniq — sun'iy kechiktirish yo'q. Darrov keyingi chunk.
@@ -992,11 +1105,58 @@ export default function DictationPage() {
     setIndex(0)
     setResults({})
     setAnswers({})
+    setFirstTry({})
+    setRunSummary(null)
+    activeSecondsRef.current = 0
+    completedRunRef.current = false
     setFinished(false)
     setShowFull(false)
     // Boshidan boshlash — darrov ijro etilsin (Boshlash tugmasi qaytmaydi)
     setStarted(true)
   }, [])
+
+  // ── Davom ettirish ─────────────────────────────────────────────────────
+  // Saqlangan joriy urinish bor bo'lsa (tugatilmagan) StartCard'da chiqadi.
+  const resumeInfo = useMemo(() => {
+    if (!savedProgress || !chunks.length) return null
+    const hasDrafts = Object.keys(savedProgress.draft_answers || {}).length > 0
+    if (!savedProgress.last_index && !hasDrafts) return null
+    return { index: Math.min(savedProgress.last_index, chunks.length - 1) }
+  }, [savedProgress, chunks.length])
+
+  const resume = useCallback(() => {
+    if (!savedProgress || !resumeInfo) { restart(); return }
+    if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)
+    const valid = (key: string) => {
+      const i = Number(key)
+      return Number.isInteger(i) && i >= 0 && i < chunks.length ? i : -1
+    }
+    const drafts: Record<number, string> = {}
+    for (const [key, value] of Object.entries(savedProgress.draft_answers || {})) {
+      const i = valid(key)
+      if (i >= 0 && typeof value === 'string') drafts[i] = value
+    }
+    const tries: Record<number, FirstTry> = {}
+    const graded: Record<number, DictationResult> = {}
+    for (const [key, value] of Object.entries(savedProgress.first_try || {})) {
+      const i = valid(key)
+      if (i < 0) continue
+      tries[i] = value
+      // Tekshirilgan gaplar holati qayta hisoblanadi (baholash mijozda — so'rov
+      // yo'q). O'tkazib yuborilgan gap jonli sessiyadagidek "yechilmagan" qoladi.
+      if (drafts[i] != null && value !== 'skipped') graded[i] = gradeDictation(chunks[i].text, drafts[i])
+    }
+    setAnswers(drafts)
+    setResults(graded)
+    setFirstTry(tries)
+    setRunSummary(null)
+    activeSecondsRef.current = savedProgress.active_seconds || 0
+    completedRunRef.current = false
+    setIndex(resumeInfo.index)
+    setFinished(false)
+    setShowFull(false)
+    setStarted(true)
+  }, [savedProgress, resumeInfo, chunks, restart])
 
   // Like/dislike — server HAR USER 1 marta (toggle). Kirmagan bo'lsa modal.
   const reactRef = useRef(0)
@@ -1031,6 +1191,7 @@ export default function DictationPage() {
 
   const skipChunk = useCallback(() => {
     if (!current) return
+    setFirstTry((f) => (index in f ? f : { ...f, [index]: 'skipped' }))
     setAnswers((a) => ({ ...a, [index]: fullAnswer }))
     if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)
     if (SKIP_NEXT_MS > 0) {
@@ -1151,9 +1312,7 @@ export default function DictationPage() {
             <h2 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 10px' }}>
               {t.lessonDone}
             </h2>
-            <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: '0 0 24px' }}>
-              Barcha {chunks.length} ta gap to'g'ri yozildi.
-            </p>
+            {runSummary && <RunSummary summary={runSummary} total={chunks.length} />}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={restart}>
                 Boshidan qayta ishlash
@@ -1252,7 +1411,7 @@ export default function DictationPage() {
                 {!started && !testMode && (
                   <VideoPosterOverlay
                     youtubeId={youtubeId}
-                    onClick={restart}
+                    onClick={isLoggedIn && resumeInfo ? resume : restart}
                     primaryLabel="Boshlash"
                   />
                 )}
@@ -1289,6 +1448,12 @@ export default function DictationPage() {
                   // effekt). Limit to'lgan bo'lsa bu StartCard umuman ko'rinmaydi.
                   restart()
                 }}
+                resume={isLoggedIn && resumeInfo
+                  ? { n: resumeInfo.index + 1, total: chunks.length, onResume: resume }
+                  : null}
+                completed={savedProgress?.completions
+                  ? { count: savedProgress.completions, best: savedProgress.best_accuracy ?? 0 }
+                  : null}
                 onTest={() => {
                   if (!isLoggedIn) { setAuthGate('Imtihonni boshlash'); return }
                   setTestMode(true)
@@ -1664,7 +1829,51 @@ function VideoPosterOverlay({ youtubeId, onClick, primaryLabel }: {
  *
  *  Agar diktantda AI-generatsiya qilingan test savollari bo'lsa "Listening
  *  test" tugmasi ham ko'rinadi. Aks holda faqat diktant tugmasi. */
-function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onTest }: {
+/** Tugatish ekrani: aniqlik (birinchi urinishda to'g'ri gaplar ulushi),
+ *  faol vaqt, o'tkazilganlar va — server javob bergach — eng yaxshi natija. */
+function RunSummary({ summary, total }: {
+  summary: { accuracy: number; ok: number; skipped: number; seconds: number; best: number | null; completions: number }
+  total: number
+}) {
+  const t = useT()
+  const color = summary.accuracy >= 80 ? '#059669' : summary.accuracy >= 50 ? '#D97706' : '#DC2626'
+  const minutes = Math.floor(summary.seconds / 60)
+  const time = `${minutes}:${String(summary.seconds % 60).padStart(2, '0')}`
+  const stat = (label: string, value: string) => (
+    <div style={{
+      flex: '1 1 140px', padding: '12px 14px', borderRadius: 12,
+      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+    }}>
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{value}</div>
+    </div>
+  )
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '0 auto 24px', maxWidth: 460 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{
+          flex: '1 1 140px', padding: '12px 14px', borderRadius: 12,
+          background: 'var(--bg-secondary)', border: `1.5px solid ${color}`,
+        }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{t.finishAccuracy}</div>
+          <div style={{ fontSize: 22, fontWeight: 900, marginTop: 2, color }}>{summary.accuracy}%</div>
+        </div>
+        {stat(t.finishTime, time)}
+      </div>
+      <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+        {fill(t.finishFirstTry, { ok: summary.ok, total })}
+        {summary.skipped > 0 && <> · {fill(t.finishSkipped, { n: summary.skipped })}</>}
+      </div>
+      {summary.best != null && summary.completions > 0 && (
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ok-text)' }}>
+          {fill(t.finishBest, { best: summary.best, count: summary.completions })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onTest, resume, completed }: {
   title: string
   chunksCount: number
   typeLabel: string
@@ -1672,6 +1881,10 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
   hasTests: boolean
   onStart: () => void
   onTest?: () => void
+  /** Saqlangan, tugatilmagan urinish — "Davom ettirish". */
+  resume?: { n: number; total: number; onResume: () => void } | null
+  /** Ilgari tugatilgan — necha marta va eng yaxshi natija. */
+  completed?: { count: number; best: number } | null
 }) {
   const t = useT()
   return (
@@ -1687,6 +1900,26 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
         <span>{typeLabel}</span>
         {cefr && <><span>·</span><span>{cefr}</span></>}
       </div>
+      {completed && (
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ok-text)' }}>
+          {fill(t.completedNote, { count: completed.count, best: completed.best })}
+        </div>
+      )}
+      {resume && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          flexWrap: 'wrap', width: '100%', maxWidth: 520, padding: '12px 14px',
+          border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-secondary)',
+        }}>
+          <span style={{ fontSize: 13.5, color: 'var(--text-secondary)', textAlign: 'left' }}>
+            {fill(t.resumeNote, { n: resume.n, total: resume.total })}
+          </span>
+          <button onClick={resume.onResume} className="btn btn-primary"
+            style={{ padding: '10px 18px', borderRadius: 10, fontWeight: 800 }}>
+            {t.resumeBtn}
+          </button>
+        </div>
+      )}
       {/* IERARXIYA (foydalanuvchi so'radi): savollari bor kontentda
           **Listening test** asosiy harakat — u qiziqroq va kirish osonroq.
           Diktant esa ikkinchi darajaga tushadi (matnli havola).
@@ -1735,13 +1968,14 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
         }}>
           <button
             onClick={onStart}
-            className="btn btn-primary"
+            // Davom ettirish bo'lsa asosiy tugma o'sha — bu "boshidan".
+            className={resume ? 'btn btn-ghost' : 'btn btn-primary'}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               fontSize: 16, padding: '15px 28px', borderRadius: 13,
               fontWeight: 800, cursor: 'pointer',
             }}
-          ><IconPlay />{t.startDictation}</button>
+          ><IconPlay />{resume ? t.startOverBtn : t.startDictation}</button>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             Tayyor bo'lganda bosing — audio darrov boshlanadi.
           </div>

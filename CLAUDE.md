@@ -189,10 +189,32 @@ diktant qila oladi.
 - `playRange(start_ms, end_ms)` orqali chunk vaqti aniq
 - Audio ustunlik: `audio_url` bo'lsa native `<audio>`, aks holda YouTube
 
-### Progress avtomatik saqlanadi
+### Progress, "Davom ettirish" va tugatish natijasi
 
-Har 1.2 s da `POST /api/dictations/{slug}/progress/` — javoblar va oxirgi
-chunk indeksi. **Kirishda tiklanmaydi** — foydalanuvchi doim chunk 1'dan.
+> Ilgari bu yerda "har 1.2 s da saqlanadi" deyilgan edi, lekin
+> `saveDictationProgress` umuman chaqirilmasdi — progress SAQLANMASDI va
+> `completed_at` hech qachon yozilmasdi. 2026-10-12 da tuzatildi.
+
+- **Joriy urinish** oxirgi o'zgarishdan `PROGRESS_SAVE_MS` (2 s) keyin
+  `POST /dictations/{slug}/progress/` ga yoziladi: `last_index`, javoblar,
+  `first_try`, faol vaqt. Boshlanmagan sahifa HECH NARSA yozmaydi (aks holda
+  shunchaki ochish saqlangan joyni bosib ketardi). Sahifadan chiqilsa kutib
+  turgan saqlash darrov yuboriladi.
+- **"Davom ettirish"** — StartCard'da "Oxirgi marta N/M-gapda to'xtagansiz".
+  Bosilsa javoblar, birinchi urinishlar va faol vaqt tiklanadi; tekshirilgan
+  gaplar holati mijozda qayta baholanadi (o'tkazilgani "yechilmagan" qoladi —
+  jonli sessiya bilan bir xil). Avtomatik emas — "Boshidan boshlash" ham bor.
+- **Aniqlik = birinchi urinishda to'g'ri yozilgan gaplar ulushi** (`firstTry`:
+  `ok` / `wrong` / `skipped`). Qayta urinib to'g'rilash aniqlikni oshirmaydi.
+- **Faol vaqt** — tab ko'rinib turgan va oxirgi tugma/bosishdan 90 s
+  o'tmagan soniyalar (`IDLE_AFTER_MS`). Reyting vaqti esa avvalgidek kontent
+  davomiyligi (`awardCompletion`) — ikkisi ATAYLAB alohida.
+- **Tugatish** (`isFinished`) → `POST /complete/` bir marta → `RunSummary`
+  (aniqlik, vaqt, o'tkazilganlar, eng yaxshi natija). Ro'yxat keshi
+  (`['dictations']`) yangilanadi — qaytganda ✓ darrov ko'rinadi.
+- **Ro'yxat** (`LessonsPage`): `my_progress` — tugatilgan bo'lsa "✓ 92%"
+  belgisi, yarim qolgan bo'lsa pastda progress chizig'i. Query kalitida user
+  id bor — bir brauzerda boshqa odam kirsa eski ✓ ko'rinmasin.
 
 ### Listening test rejimi (`TestView` — shu fayl ichida)
 

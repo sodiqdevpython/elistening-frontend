@@ -43,8 +43,16 @@ export async function saveDictationProgress(slug: string, payload: {
   percent: number
   last_index?: number
   draft_answers?: Record<string, unknown>
+  first_try?: Record<string, import('./types').FirstTry>
+  active_seconds?: number
 }) {
   const { data } = await api.post<DictationProgress>(`/dictations/${slug}/progress/`, payload)
+  return data
+}
+
+/** Diktant oxirigacha yozildi — natija saqlanadi, joriy urinish tozalanadi. */
+export async function completeDictation(slug: string, payload: { accuracy: number; active_seconds: number }) {
+  const { data } = await api.post<DictationProgress>(`/dictations/${slug}/complete/`, payload)
   return data
 }
 

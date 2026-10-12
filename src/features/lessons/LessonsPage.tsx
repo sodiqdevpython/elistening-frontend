@@ -8,6 +8,8 @@ import {
   Badge, EmptyState, ErrorState, LevelSelect, SearchField, Spinner,
 } from '@/components/ui'
 import { useLang, useT } from '@/i18n'
+import { useAuth } from '@/store/auth'
+import { fill } from '@/utils/format'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const PAGE_SIZE = 24
@@ -41,9 +43,12 @@ export default function LessonsPage() {
   })
   const category = header?.category
 
-  // Asosiy ro'yxat — sahifama-sahifa yuklaymiz.
+  // Asosiy ro'yxat — sahifama-sahifa yuklaymiz. Javobda foydalanuvchining
+  // shaxsiy holati (`my_progress`) bor — kalitda kimligi ham bo'lsin, aks
+  // holda bir brauzerda boshqa odam kirsa eski ✓ belgilar ko'rinib qolardi.
+  const userId = useAuth((s) => s.user?.id ?? null)
   const infinite = useInfiniteQuery({
-    queryKey: ['dictations', typeSlug, search, level],
+    queryKey: ['dictations', typeSlug, search, level, userId],
     queryFn: ({ pageParam }) => fetchDictations({
       type: typeSlug, search, level, page: pageParam, page_size: PAGE_SIZE,
     }),
@@ -135,6 +140,15 @@ function LessonCard({ lesson, typeSlug }: { lesson: Dictation; typeSlug: string 
   const t = useT()
   const href = `/topics/${typeSlug}/${lesson.slug}`
   const meta = lesson.chunks_count ? `${lesson.chunks_count} chunk` : lesson.type_label
+  // Kirgan foydalanuvchining holati: ✓ tugatilgan (eng yaxshi natija) va
+  // yarim qolgan urinish foizi. Tugatilgan darsni qayta boshlasa ikkalasi ham.
+  const mine = lesson.my_progress
+  const done = mine?.completed
+    ? { best: mine.best_accuracy ?? 0, title: fill(t.lessonCompletedTitle, { best: mine.best_accuracy ?? 0 }) }
+    : null
+  const partial = mine && mine.percent > 0 && mine.percent < 100
+    ? { percent: mine.percent, title: fill(t.lessonProgressTitle, { p: mine.percent }) }
+    : null
   return (
     // YouTube uslubidagi kartochka — border yo'q, fon yo'q, faqat thumbnail
     // ostidagi matn. Hover'da thumbnail biroz kattaroq bo'ladi.
@@ -147,6 +161,8 @@ function LessonCard({ lesson, typeSlug }: { lesson: Dictation; typeSlug: string 
         youtubeId={lesson.youtube_id}
         title={lesson.title}
         durationLabel={lesson.duration_label}
+        done={done}
+        partial={partial}
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 2px' }}>
         <div style={{
@@ -178,10 +194,14 @@ function LessonCard({ lesson, typeSlug }: { lesson: Dictation; typeSlug: string 
  *  - Katta 16:9 rasm, dumaloq burchak
  *  - O'ng-past burchakda davomiylik (masalan `3:23`) — YouTube kabi
  *  - YouTube ID yo'q bo'lsa audio ikonli placeholder */
-function Thumbnail({ youtubeId, title, durationLabel }: {
+function Thumbnail({ youtubeId, title, durationLabel, done, partial }: {
   youtubeId: string | null
   title: string
   durationLabel: string
+  /** ✓ tugatilgan — chap-yuqorida eng yaxshi natija bilan. */
+  done?: { best: number; title: string } | null
+  /** Yarim qolgan urinish — pastda YouTube uslubidagi chiziq. */
+  partial?: { percent: number; title: string } | null
 }) {
   const [broken, setBroken] = useState(false)
   const [triedHq, setTriedHq] = useState(false)
@@ -232,6 +252,33 @@ function Thumbnail({ youtubeId, title, durationLabel }: {
           fontSize: 12, fontWeight: 700, letterSpacing: '.01em',
           lineHeight: 1.2,
         }}>{durationLabel}</span>
+      )}
+
+      {done && (
+        <span title={done.title} aria-label={done.title} style={{
+          position: 'absolute', left: 8, top: 8,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '3px 8px', borderRadius: 999,
+          background: 'rgba(5,150,105,.92)', color: '#FFF',
+          fontSize: 12, fontWeight: 800, lineHeight: 1.2,
+        }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden>
+            <path d="M4 12.5l5.5 5.5L20 7" stroke="currentColor" strokeWidth="3"
+              fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {done.best}%
+        </span>
+      )}
+
+      {partial && (
+        <div title={partial.title} aria-label={partial.title} role="progressbar"
+          aria-valuenow={partial.percent} aria-valuemin={0} aria-valuemax={100}
+          style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0, height: 4,
+            background: 'rgba(255,255,255,.35)',
+          }}>
+          <div style={{ width: `${partial.percent}%`, height: '100%', background: '#10B981' }} />
+        </div>
       )}
     </div>
   )
