@@ -36,6 +36,17 @@
  * begona so'z esa "yozilmagan" + "ortiqcha" bo'lib ajraladi.
  *
  * Gap uzunligi o'nlab so'z, shu bois O(n·m) DP sezilmaydi.
+ *
+ * ## Raqamlar formatga bog'liq emas (Numbers bo'limi)
+ *
+ * "(797) 285-6959" normalizatsiyadan keyin uch token: `797 285 6959`.
+ * Foydalanuvchi esa ko'pincha "7972856959" deb bitta qilib yozadi — raqamlar
+ * aynan bir xil, lekin "0/3 correct" + "Extra: 7972856959" chiqardi.
+ *
+ * Shu bois ketma-ket kelgan SOF RAQAMLI tokenlar ikkala tomonda ham bitta
+ * birlikka qo'shiladi (`groupDigits`): qavs, chiziqcha, bo'shliq, nuqta —
+ * hech biri ahamiyatsiz. "797 285 6959", "797-285-6959", "(797)285-6959" va
+ * "7972856959" — hammasi to'g'ri. Tekislash va ball shu birliklar ustida.
  */
 
 const CURLY_QUOTES = /[‘’]/g
@@ -44,6 +55,7 @@ const ORDINAL = /(\d+)(st|nd|rd|th)\b/gi
 // Unicode letter, digit, whitespace yoki apostrof emas — bo'shliq bilan almashadi.
 const PUNCT = /[^\p{L}\p{N}\s']/gu
 const SPACE = /\s+/g
+const DIGITS = /^\d+$/
 
 /**
  * Juftlangan so'zni "tuzatish" deb hisoblash uchun eng kam o'xshashlik.
@@ -189,14 +201,36 @@ function align(expected: string[], given: string[]): Op[] {
   return ops.reverse()
 }
 
+interface Unit {
+  text: string
+  /** Shu birlikka kirgan tokenlar indekslari. */
+  members: number[]
+}
+
+/** Ketma-ket sof raqamli tokenlarni bitta birlikka qo'shadi (yuqoridagi izoh). */
+function groupDigits(tokens: string[]): Unit[] {
+  const units: Unit[] = []
+  tokens.forEach((token, i) => {
+    const last = units[units.length - 1]
+    if (last && DIGITS.test(token) && DIGITS.test(last.text)) {
+      last.text += token
+      last.members.push(i)
+    } else {
+      units.push({ text: token, members: [i] })
+    }
+  })
+  return units
+}
+
 /**
  * Diktantni baholaydi va so'z darajasidagi feedback beradi.
  *
- * Ball semantikasi o'zgarmagan: `matched` — to'g'ri yozilgan tokenlar soni,
- * `total` — asl matndagi tokenlar soni. Ekrandagi "6/11" shu ikkisidan.
+ * `matched` — to'g'ri yozilgan birliklar soni, `total` — asl matndagi
+ * birliklar soni (ekrandagi "6/11"). Birlik — oddiy so'z yoki bir butun son:
+ * telefon raqami "(797) 285-6959" bitta birlik.
  */
 export function gradeDictation(expected: string, given: string): DictationResult {
-  const givenWords = normalize(given).split(' ').filter(Boolean)
+  const givenWords = groupDigits(normalize(given).split(' ').filter(Boolean)).map((u) => u.text)
   // Asl matnni so'zlar bo'yicha (tinish belgilari bilan) saqlab qolamiz —
   // feedback'da xuddi shunday chiroyli ko'rinadi.
   const rawWords = expected.trim().split(/\s+/).filter(Boolean)
@@ -217,27 +251,37 @@ export function gradeDictation(expected: string, given: string): DictationResult
     }
   })
 
-  const tokenState: WordState[] = expTokens.map(() => 'missing')
-  const tokenTyped: string[] = expTokens.map(() => '')
+  const units = groupDigits(expTokens)
+  const unitState: WordState[] = units.map(() => 'missing')
+  const unitTyped: string[] = units.map(() => '')
   const extra: string[] = []
 
-  for (const op of align(expTokens, givenWords)) {
+  for (const op of align(units.map((u) => u.text), givenWords)) {
     if (op.kind === 'extra') {
       extra.push(op.given)
     } else if (op.kind === 'ok') {
-      tokenState[op.expIndex] = 'ok'
+      unitState[op.expIndex] = 'ok'
     } else if (op.kind === 'sub') {
       // Juftlandi — lekin bu tuzatishmi yoki butunlay boshqa so'zmi?
-      if (similarity(expTokens[op.expIndex], op.given) >= TYPO_SIMILARITY) {
-        tokenState[op.expIndex] = 'typo'
-        tokenTyped[op.expIndex] = op.given
+      if (similarity(units[op.expIndex].text, op.given) >= TYPO_SIMILARITY) {
+        unitState[op.expIndex] = 'typo'
+        unitTyped[op.expIndex] = op.given
       } else {
         // Yaqin emas: asl so'z yozilmagan, foydalanuvchiniki esa ortiqcha.
-        tokenState[op.expIndex] = 'missing'
+        unitState[op.expIndex] = 'missing'
         extra.push(op.given)
       }
     }
   }
+
+  // Birlik holati uning har tokeniga; foydalanuvchi varianti esa faqat
+  // OXIRGI tokenga — bir necha so'zga cho'zilgan son ostida u bir marta chiqsin.
+  const tokenState: WordState[] = expTokens.map(() => 'missing')
+  const tokenTyped: string[] = expTokens.map(() => '')
+  units.forEach((unit, u) => {
+    for (const k of unit.members) tokenState[k] = unitState[u]
+    tokenTyped[unit.members[unit.members.length - 1]] = unitTyped[u]
+  })
 
   const words: WordFeedback[] = rawWords.map((raw, rawIndex) => {
     const own = expTokens.map((_, k) => k).filter((k) => tokenOwner[k] === rawIndex)
@@ -261,8 +305,8 @@ export function gradeDictation(expected: string, given: string): DictationResult
     }
   })
 
-  const total = expTokens.length
-  const matched = tokenState.filter((s) => s === 'ok').length
+  const total = units.length
+  const matched = unitState.filter((s) => s === 'ok').length
 
   if (total === 0) {
     return { isCorrect: false, score: 0, words, matched: 0, total: 0, extra }

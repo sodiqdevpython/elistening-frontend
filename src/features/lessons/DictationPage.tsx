@@ -1024,11 +1024,31 @@ export default function DictationPage() {
       if (stopAt == null || el.paused) return
       if (el.currentTime * 1000 >= stopAt) el.pause()
     }
+    // Aniq to'xtash: 50 ms lik so'rov bo'lak oxiridan 50 ms gacha oshib
+    // ketardi — ketma-ket raqamlarda (Numbers) keyingisining boshi eshitilardi.
+    // Ijro boshlanishi bilan qolgan vaqtga taymer qo'yiladi va u yetib kelganda
+    // qayta o'lchaydi; so'rov (`enforce`) — zaxira.
+    let precise = 0
+    const arm = () => {
+      window.clearTimeout(precise)
+      const stopAt = stopAtMsRef.current
+      if (stopAt == null || el.paused) return
+      const left = (stopAt - el.currentTime * 1000) / (el.playbackRate || 1)
+      if (left <= 8) { el.pause(); return }
+      precise = window.setTimeout(arm, Math.max(0, left - 4))
+    }
     el.addEventListener('timeupdate', enforce)
+    el.addEventListener('playing', arm)
+    el.addEventListener('seeked', arm)
+    el.addEventListener('ratechange', arm)
     const timer = window.setInterval(enforce, 50)
     return () => {
       el.removeEventListener('timeupdate', enforce)
+      el.removeEventListener('playing', arm)
+      el.removeEventListener('seeked', arm)
+      el.removeEventListener('ratechange', arm)
       window.clearInterval(timer)
+      window.clearTimeout(precise)
     }
   }, [current?.start_ms])
 

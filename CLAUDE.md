@@ -87,7 +87,14 @@ Chunk sarlavhasi navigatsiya: `<` prev, `1 / 21`, `>` next
 
 - Audio doim mount holida (`display:none` bilan yashirish)
 - Chunk almashsa audio boshiga qo'yiladi va avtomatik yangraydi
-- Chunk oxirida majburiy to'xtash: `setInterval(50 ms)` + `timeupdate`
+- Chunk oxirida majburiy to'xtash: ijro boshlanganda qolgan vaqtga **aniq
+  taymer** (`arm`, `playing`/`seeked`/`ratechange` da qayta qo'yiladi) +
+  zaxira `setInterval(50 ms)` + `timeupdate`. Faqat so'rov bo'lganda 50 ms
+  gacha oshib ketardi (o'lchandi: 2–50 ms → 1–6 ms) — ketma-ket raqamlarda
+  keyingisining boshi eshitilardi
+- **Surish aniqligi audio faylga bog'liq:** VBR mp3'da Chrome 1 s gacha
+  adashadi, shu bois server ularni CBR'ga o'tkazadi
+  (`../backend/CLAUDE.md` → "Audio — VBR mp3 CBR'ga")
 - Chunk padding: `CHUNK_LEAD_MS = 200`, `CHUNK_TAIL_MS = 250` — Whisper
   vaqtlari so'z boshini/oxirini biroz kesadi. **`fixed` chunk'da (tashqi
   manbadan import) padding 0** (`chunkPadding()`): u yerdagi vaqtlar muharrir
@@ -583,6 +590,11 @@ Uchta nozik joy (uchalasi ham jonli sahifada o'lchab tuzatilgan):
 ### `utils/grade.ts`
 
 - `normalize(text)` — bag'rikeng normalizatsiya (kasa-kichik, tinish, `26th`=`26`, `1,000`=`1000`)
+- **Raqam formatga bog'liq emas** (`groupDigits`): ketma-ket sof raqamli tokenlar
+  ikkala tomonda bitta birlikka qo'shiladi — "(797) 285-6959" ga "7972856959",
+  "797 285 6959", "797-285-6959" hammasi to'g'ri. Ilgari Numbers bo'limida
+  to'g'ri yozilgan telefon "0/3 correct" + "Extra" chiqardi. Ball ham birlik
+  bo'yicha: telefon raqami = 1 birlik (`matched`/`total`)
 - `gradeDictation(expected, given)` — `DictationResult`:
   `isCorrect`, `score`, `matched`, `total`, `words[]`, `extra[]`
 - `words[i].state` — `'ok' | 'typo' | 'missing'`; `typed` — foydalanuvchi
