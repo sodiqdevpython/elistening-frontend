@@ -44,10 +44,32 @@ export async function saveDictationProgress(slug: string, payload: {
   last_index?: number
   draft_answers?: Record<string, unknown>
   first_try?: Record<string, import('./types').FirstTry>
+  mistakes?: Record<string, number[]>
   active_seconds?: number
 }) {
   const { data } = await api.post<DictationProgress>(`/dictations/${slug}/progress/`, payload)
   return data
+}
+
+// --- Shaxsiy lug'at ---------------------------------------------------------
+export async function fetchMyVocab() {
+  const { data } = await api.get<{ count: number; results: import('./types').VocabWord[] }>('/me/vocab/')
+  return data
+}
+
+/** Lug'atdagi so'zlar → id (tugatish ekrani: qaysi so'z allaqachon bor). */
+export async function fetchMyVocabWords() {
+  const { data } = await api.get<{ words: Record<string, number> }>('/me/vocab/words/')
+  return data.words
+}
+
+export async function addVocabWord(payload: { word: string; context?: string; dictation?: string }) {
+  const { data } = await api.post<import('./types').VocabWord>('/me/vocab/', payload)
+  return data
+}
+
+export async function removeVocabWord(id: number) {
+  await api.delete(`/me/vocab/${id}/`)
 }
 
 /** Diktant oxirigacha yozildi — natija saqlanadi, joriy urinish tozalanadi. */
@@ -475,10 +497,6 @@ export async function clickOrderStatus(orderId: number) {
 export async function requestAccountDeletion() {
   const { data } = await api.post<{ ok: boolean }>('/me/request-deletion/', {})
   return data
-}
-
-export async function addVocab(_vocabItem: number) {
-  return { added: true }
 }
 
 // --- IELTS Listening tests ---------------------------------------------

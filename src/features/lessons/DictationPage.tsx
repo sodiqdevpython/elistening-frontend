@@ -27,6 +27,7 @@ import { useT } from '@/i18n'
 import { TOUR, useTour } from '@/utils/onboarding'
 import { displayLetter, shuffleOptions } from '@/utils/shuffle'
 import { gradeDictation, type DictationResult } from '@/utils/grade'
+import { MistakesList, TranscriptWords } from './LessonReview'
 
 const SETTINGS_KEY = 'listening.dictation.settings'
 
@@ -642,6 +643,9 @@ export default function DictationPage() {
   // Har gapning BIRINCHI tekshiruvi — aniqlik shundan (qayta urinib
   // to'g'rilangan gap "ok" emas). "Davom ettirish"da serverdan tiklanadi.
   const [firstTry, setFirstTry] = useState<Record<number, FirstTry>>({})
+  // Birinchi tekshiruvda XATO yozilgan so'zlar (gap → so'z indekslari) —
+  // tugatish ekrani "qaysi so'zni xato yozdim" ni shundan chizadi.
+  const [mistakes, setMistakes] = useState<Record<number, number[]>>({})
   // Tugatilgan urinish natijasi — tugatish ekrani uchun.
   const [runSummary, setRunSummary] = useState<{
     accuracy: number; ok: number; skipped: number; seconds: number
@@ -923,6 +927,7 @@ export default function DictationPage() {
       last_index: index,
       draft_answers: answers,
       first_try: firstTry,
+      mistakes,
       active_seconds: activeSecondsRef.current,
     }).catch(() => {})
   }
@@ -933,7 +938,7 @@ export default function DictationPage() {
       saveTimerRef.current = null
       latestSaveRef.current?.()
     }, PROGRESS_SAVE_MS)
-  }, [answers, firstTry, index, isLoggedIn, started, isFinished, testMode, chunks.length])
+  }, [answers, firstTry, mistakes, index, isLoggedIn, started, isFinished, testMode, chunks.length])
   // Sahifadan chiqib ketilsa — kutib turgan saqlash darrov yuboriladi.
   useEffect(() => () => {
     if (saveTimerRef.current) {
@@ -1103,6 +1108,10 @@ export default function DictationPage() {
     const result = gradeDictation(fullAnswer, given)
     setResults((r) => ({ ...r, [index]: result }))
     // Faqat BIRINCHI tekshiruv hisoblanadi — keyin to'g'rilash aniqlikni oshirmaydi.
+    if (!(index in firstTry) && !result.isCorrect) {
+      const wrongWords = result.words.flatMap((w, i) => (w.state === 'ok' ? [] : [i]))
+      setMistakes((m) => (index in m ? m : { ...m, [index]: wrongWords }))
+    }
     setFirstTry((f) => (index in f ? f : { ...f, [index]: result.isCorrect ? 'ok' : 'wrong' }))
     if (result.isCorrect) {
       setAnswers((a) => ({ ...a, [index]: fullAnswer }))
@@ -1113,7 +1122,7 @@ export default function DictationPage() {
         advance()
       }
     }
-  }, [advance, answers, current, fullAnswer, index, results])
+  }, [advance, answers, current, firstTry, fullAnswer, index, results])
 
   const goTo = useCallback((next: number) => {
     if (next < 0 || next >= chunks.length) return
@@ -1126,6 +1135,7 @@ export default function DictationPage() {
     setResults({})
     setAnswers({})
     setFirstTry({})
+    setMistakes({})
     setRunSummary(null)
     activeSecondsRef.current = 0
     completedRunRef.current = false
@@ -1166,9 +1176,15 @@ export default function DictationPage() {
       // yo'q). O'tkazib yuborilgan gap jonli sessiyadagidek "yechilmagan" qoladi.
       if (drafts[i] != null && value !== 'skipped') graded[i] = gradeDictation(chunks[i].text, drafts[i])
     }
+    const wrong: Record<number, number[]> = {}
+    for (const [key, value] of Object.entries(savedProgress.mistakes || {})) {
+      const i = valid(key)
+      if (i >= 0 && Array.isArray(value)) wrong[i] = value.filter((w) => Number.isInteger(w) && w >= 0)
+    }
     setAnswers(drafts)
     setResults(graded)
     setFirstTry(tries)
+    setMistakes(wrong)
     setRunSummary(null)
     activeSecondsRef.current = savedProgress.active_seconds || 0
     completedRunRef.current = false
@@ -1305,8 +1321,9 @@ export default function DictationPage() {
         </div>
 
         <div style={{ display: tab === 'transcript' ? 'block' : 'none' }}>
-          <div className="card" style={{ padding: 28, fontSize: 16, lineHeight: 1.9 }}>
-            {chunks.map((c, i) => <p key={i} style={{ margin: '0 0 12px' }}>{c.text}</p>)}
+          <div className="card" style={{ padding: 28 }}>
+            <TranscriptWords chunks={chunks} slug={slug} mistakes={mistakes}
+              onNeedAuth={() => setAuthGate(t.vocabAddTitle)} />
           </div>
         </div>
 
@@ -1343,6 +1360,21 @@ export default function DictationPage() {
               </Link>
             </div>
           </div>
+          {/* Natija tahlili — qaysi so'z xato yozilgani va to'liq matn; istalgan
+              so'z bosilsa shaxsiy lug'atga qo'shiladi (profilda ko'rinadi). */}
+          {isFinished && !testMode && chunks.length > 0 && (
+            <div className="card" style={{ padding: 28, marginTop: 16, display: 'flex', flexDirection: 'column', gap: 22 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{t.reviewTitle}</h3>
+              <MistakesList chunks={chunks} slug={slug} mistakes={mistakes}
+                onNeedAuth={() => setAuthGate(t.vocabAddTitle)} />
+              <div>
+                <div className="tw-subtitle">{t.reviewTranscriptTitle}</div>
+                <TranscriptWords chunks={chunks} slug={slug} mistakes={mistakes}
+                  skipped={new Set(chunks.flatMap((_, i) => (firstTry[i] === 'skipped' ? [i] : [])))}
+                  onNeedAuth={() => setAuthGate(t.vocabAddTitle)} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Diktant kartochkasi — video HAR DOIM mount qilinadi, shu bilan

@@ -74,6 +74,8 @@ export interface DictationProgress {
   last_index: number
   draft_answers: Record<string, unknown>
   first_try?: Record<string, FirstTry>
+  /** Birinchi tekshiruvda xato yozilgan so'zlar: gap indeksi → so'z indekslari. */
+  mistakes?: Record<string, number[]>
   active_seconds?: number
   // Tugatilganlar (faqat o'qiladi — `/complete/` yozadi)
   completed_at?: string | null
@@ -81,6 +83,16 @@ export interface DictationProgress {
   best_accuracy?: number | null
   last_accuracy?: number | null
   last_active_seconds?: number
+}
+
+/** Shaxsiy lug'atdagi so'z ("bilmayman" deb belgilangan). */
+export interface VocabWord {
+  id: number
+  word: string
+  display: string
+  context: string
+  dictation: { slug: string; title: string; type_slug: string } | null
+  created_at: string
 }
 
 /** Ro'yxatdagi kartochka uchun — kirgan foydalanuvchining shu darsdagi holati. */

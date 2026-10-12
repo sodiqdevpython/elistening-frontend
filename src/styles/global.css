@@ -194,6 +194,8 @@ body.split-dragging iframe { pointer-events: none; }
   --info-text: #1D4ED8;
   --ok-bg: #ECFDF5;
   --ok-text: #059669;
+  --err-bg: #FEE2E2;
+  --err-text: #B91C1C;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, .03), 0 6px 16px rgba(15, 23, 42, .05);
   --shadow-md: 0 10px 28px rgba(15, 23, 42, .1);
   --shadow-lg: 0 20px 50px rgba(0, 0, 0, .18);
@@ -222,6 +224,8 @@ body.split-dragging iframe { pointer-events: none; }
   --info-text: #93C5FD;
   --ok-bg: rgba(16, 185, 129, .16);
   --ok-text: #34D399;
+  --err-bg: rgba(239, 68, 68, .18);
+  --err-text: #FCA5A5;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 16px rgba(0, 0, 0, .35);
   --shadow-md: 0 10px 28px rgba(0, 0, 0, .45);
   --shadow-lg: 0 20px 50px rgba(0, 0, 0, .6);
@@ -728,3 +732,33 @@ body.split-dragging iframe { pointer-events: none; }
 @media (max-width: 720px) {
   .wallet-pill-id { display: none; }
 }
+
+/* --- Natija tahlili / to'liq matn: bosiladigan so'zlar (shaxsiy lug'at) ---
+   `features/lessons/LessonReview.tsx`. Xato yozilgan — qizil, lug'atdagi —
+   ko'k tagchiziq; ikkalasi birga bo'lsa matn qizil qoladi. */
+.tw-text { font-size: 16px; line-height: 2; color: var(--text); }
+.tw-text p { margin: 0 0 10px; }
+.tw-word, .tw-plain {
+  font: inherit; color: inherit; background: none; border: 0;
+  padding: 1px 2px; margin: 0 -1px; border-radius: 6px;
+}
+.tw-word { cursor: pointer; transition: background .12s, box-shadow .12s; }
+.tw-word:hover { background: var(--bg-secondary); box-shadow: inset 0 0 0 1px var(--border); }
+.tw-word:focus-visible { outline: 2px solid var(--info-text); outline-offset: 1px; }
+.tw-word.is-wrong, .tw-plain.is-wrong { color: var(--err-text); background: var(--err-bg); font-weight: 600; }
+.tw-word.is-saved, .tw-plain.is-saved { background: var(--info-bg); color: var(--info-text); box-shadow: inset 0 -2px 0 var(--info-text); }
+.tw-word.is-wrong.is-saved { color: var(--err-text); }
+.tw-skipped { opacity: .6; }
+.tw-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; margin-left: 4px;
+  border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary); vertical-align: 2px;
+}
+.tw-hint { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+.tw-legend { display: inline-flex; gap: 8px; font-size: 12.5px; }
+.tw-error { font-size: 13px; color: var(--err-text); margin-bottom: 8px; }
+.tw-subtitle { font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
+.tw-chips { display: flex; flex-wrap: wrap; gap: 8px; font-size: 15px; }
+.tw-chips .tw-word, .tw-chips .tw-plain { margin: 0; padding: 4px 10px; border-radius: 999px; }
+.tw-none { font-size: 14px; font-weight: 600; color: var(--ok-text); }
+.tw-mark { background: var(--info-bg); color: var(--info-text); font-weight: 700; padding: 0 3px; border-radius: 4px; }

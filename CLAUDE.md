@@ -217,7 +217,15 @@ diktant qila oladi.
   o'tmagan soniyalar (`IDLE_AFTER_MS`). Reyting vaqti esa avvalgidek kontent
   davomiyligi (`awardCompletion`) — ikkisi ATAYLAB alohida.
 - **Tugatish** (`isFinished`) → `POST /complete/` bir marta → `RunSummary`
-  (aniqlik, vaqt, o'tkazilganlar, eng yaxshi natija). Ro'yxat keshi
+  (aniqlik, vaqt, o'tkazilganlar, eng yaxshi natija).
+- **Natija tahlili** (tugatish ekranining ostida, `LessonReview.tsx`):
+  birinchi urinishda XATO yozilgan so'zlar (chip'lar) + to'liq matn — xatolar
+  qizil, o'tkazilgan gaplar yorliq bilan. Manba — `mistakes` (gap → so'z
+  indekslari; birinchi `check` da `result.words` dan yoziladi, progress
+  bilan saqlanadi). **Istalgan so'z bosilsa shaxsiy lug'atga** qo'shiladi
+  (yana bosilsa olib tashlanadi; optimistik, `['vocab-words', userId]`
+  keshi). "To'liq matn" tabi ham shu komponent. Raqamlar bosilmaydi.
+  Lug'at profilda — `features/profile/VocabCard.tsx` (hozircha faqat ko'rish). Ro'yxat keshi
   (`['dictations']`) yangilanadi — qaytganda ✓ darrov ko'rinadi.
 - **Ro'yxat** (`LessonsPage`): `my_progress` — tugatilgan bo'lsa "✓ 92%"
   belgisi, yarim qolgan bo'lsa pastda progress chizig'i. Query kalitida user

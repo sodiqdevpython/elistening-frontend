@@ -17,6 +17,7 @@ import { displayHandle } from '@/utils/username'
 import LimitsCard from './LimitsCard'
 import PlanHistoryCard from './PlanHistoryCard'
 import SessionsCard from './SessionsCard'
+import VocabCard from './VocabCard'
 import WalletHistoryCard from './WalletHistoryCard'
 import { useLang, useT } from '@/i18n'
 import { fill, formatMinutes } from '@/utils/format'
@@ -501,6 +502,9 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Shaxsiy lug'at — diktant oxirida "bilmayman" deb bosilgan so'zlar */}
+        <VocabCard />
 
         {/* Bugungi kunlik limit — mobil ilovada bor edi, saytda yo'q edi */}
         <LimitsCard />
