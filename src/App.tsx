@@ -16,6 +16,7 @@ const IeltsTestPage = lazy(() => import('@/features/ielts/IeltsTestPage'))
 // News/Cartoons/Movies endi ShortsPage'ga yo'naltirilgan (bir xil AI feed).
 const LeaderboardPage = lazy(() => import('@/features/leaderboard/LeaderboardPage'))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
+const UserProfilePage = lazy(() => import('@/features/users/UserProfilePage'))
 const BillingPage = lazy(() => import('./features/billing/BillingPage'))
 const AuthPage = lazy(() => import('@/features/auth/AuthPage'))
 const PrivacyPage = lazy(() => import('@/features/legal/PrivacyPage'))
@@ -86,6 +87,7 @@ export default function App() {
           {/* Foydalanuvchi */}
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="u/:id" element={<UserProfilePage />} />
           {/* Tarif tanlash — Telegram bot limitga yetilganda shu yerga
               yo'naltiradi (ilovada tashqi to'lov havolasi bo'lmasligi kerak). */}
           <Route path="profile/billing" element={<BillingPage />} />

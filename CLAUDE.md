@@ -39,7 +39,8 @@ Manzil: http://localhost:5173
 | **`/movies`, `/cartoons`** | → `/topics/movie` va `/topics/cartoon` ga **redirect**. Film/multfilm endi oddiy VIDEO (`Dictation.type`), ya'ni boshqa mavzular bilan bir xil grid va bir xil video sahifasi. Ilgari ular `Short` edi va vertikal feed'da ochilardi — uzun film tik shablonda chiqib, "na video na shorts" bo'lardi (`../backend/CLAUDE.md` → "Modelni HAVOLA tanlaydi") |
 | `/movies/:id`, `/cartoons/:id` | ShortsPage feed, o'sha videoga pin qilingan |
 | `/videos` | → `/topics/random-videos` ga redirect (soxta sahifa o'chirildi) |
-| `/leaderboard` | Reyting TOP 30 |
+| `/leaderboard` | Reyting TOP 30 + foydalanuvchi qidiruvi (kirganlarga). Qator bosilsa profil |
+| **`/u/:id`** | **Boshqa foydalanuvchining ochiq profili** (`features/users/UserProfilePage.tsx`) |
 | `/profile` | Profil, statistika, taklif havolasi |
 | **`/profile/billing`** | **Tariflar** — bugungi sarf + tarif tanlash (bot shu manzilni yuboradi) |
 | `/auth` | Telegram OTP kirish |
@@ -874,6 +875,22 @@ foydalanuvchi rasmni umuman topa olmasdi. Endi ikkala rejimda ham bor.
 **Taklif kartasi** endi sovg'a qoidasi, keyingi sovg'agacha progress bari va
 olingan sovg'alar ro'yxatini ko'rsatadi (`GET /api/me/invites/`). Havola
 BOTGA olib boradi (`t.me/<bot>?start=<kod>`) — hisob shu orqali yuritiladi.
+Ostida **"Siz taklif qilganlar"** (kim + sana, eng yangisi birinchi, 8 tasi
+ko'rinadi, qolgani "Yana N ta") va **"Sizni taklif qilgan"**. Har ism ochiq
+profilga havola; taklif qilgan akkauntini o'chirgan bo'lsa ismi qoladi,
+havolasiz (`id: null`).
+
+## Ochiq profil va qidiruv (`features/users/`)
+
+| Fayl | Nima |
+|---|---|
+| `UserProfilePage.tsx` | `/u/:id` — ism, rasm, daraja, sana + 4 ta statistika; o'ziniki bo'lsa "Profilimni ochish". 404 → "topilmadi" |
+| `UserSearch.tsx` | Ism / @username, 300 ms debounce, 2+ harf, Enter — birinchi natija. Reytingda va profil sahifasida (faqat kirganlarga) |
+| `components/UserAvatar.tsx` | Umumiy avatar: rasm yoki bosh harf gradient (reyting, qidiruv, takliflar) |
+
+Manzil username emas, **ichki id** — avtomatik `tg<id>` username Telegram ID
+ni (= To'lov ID) oshkor qilardi (`../backend/CLAUDE.md` → "Ochiq profillar").
+Reyting qatori faqat `has_profile` bo'lsa havola (ismsizniki 404 bo'lardi).
 
 ## i18n: lug'atda FUNKSIYA bo'lmaydi
 

@@ -22,3 +22,11 @@ export function fill(template: string, values: Record<string, string | number>):
     key in values ? String(values[key]) : match,
   )
 }
+
+/** Sana doim kun.oy.yil — en-US brauzerda "10/11" chalkashmasin. */
+export function formatDay(value: string, lang: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}

@@ -406,6 +406,8 @@ export interface LeaderboardRow {
    *  bo'lmasligi mumkin). */
   seconds?: number
   is_me: boolean
+  /** Ochiq profili bor (`/u/:id`). Ismsiz foydalanuvchida `false` — havola yo'q. */
+  has_profile?: boolean
 }
 
 export interface Plan {
@@ -470,6 +472,38 @@ export interface SessionRow {
 }
 
 /** `GET /api/me/invites/` — taklif hisobi va olingan sovg'alar. */
+/**
+ * Boshqa foydalanuvchining OCHIQ kartasi (qidiruv, takliflar ro'yxati).
+ * Telegram ID ham, avtomatik `tg<id>` username ham bu yerga kelmaydi —
+ * `username` faqat o'zi tanlagan bo'lsa to'ladi.
+ */
+export interface PublicUserCard {
+  id: number
+  name: string
+  username: string
+  avatar_url: string
+  initial: string
+  cefr_level: string
+}
+
+/** `GET /api/users/:id/` — ochiq profil. */
+export interface PublicProfile extends PublicUserCard {
+  joined_at: string
+  is_me: boolean
+  stats: {
+    listening_seconds: number
+    listening_seconds_30d: number
+    dictations_completed: number
+    invited_count: number
+  }
+}
+
+/** Men taklif qilgan odam — qachon qo'shilgani bilan. */
+export type InvitedUser = PublicUserCard & { invited_at: string }
+
+/** Meni kim taklif qilgan. `id: null` — u akkaunt o'chirilgan (ism nusxadan). */
+export type InvitedBy = Omit<PublicUserCard, 'id'> & { id: number | null; invited_at: string }
+
 export interface InviteStats {
   invited_total: number
   granted_plus_months: number
@@ -489,6 +523,9 @@ export interface InviteStats {
     invites_spent: number
     created_at: string
   }[]
+  /** Men taklif qilganlar, eng yangisi birinchi (eski serverda yo'q). */
+  invited?: InvitedUser[]
+  invited_by?: InvitedBy | null
 }
 
 /** Tarif tarixining bitta yozuvi (`GET /api/me/subscriptions/`). */

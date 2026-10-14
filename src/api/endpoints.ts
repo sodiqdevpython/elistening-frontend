@@ -418,6 +418,20 @@ export async function logoutSession() {
   await api.post('/auth/logout/')
 }
 
+/** Boshqa foydalanuvchining ochiq profili (kirmagan ham ko'ra oladi). */
+export async function fetchUserProfile(id: number | string) {
+  const { data } = await api.get<import('./types').PublicProfile>(`/users/${id}/`)
+  return data
+}
+
+/** Ism yoki @username bo'yicha qidiruv (faqat kirganlar, 2+ harf). */
+export async function searchUsers(q: string) {
+  const { data } = await api.get<{ results: import('./types').PublicUserCard[] }>(
+    '/users/search/', { params: { q } },
+  )
+  return data.results
+}
+
 /** Taklif hisobi va olingan sovg'alar. */
 export async function fetchInvites() {
   const { data } = await api.get<import('./types').InviteStats>('/me/invites/')

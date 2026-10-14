@@ -6,8 +6,9 @@ import {
   updateAvatar, updateMe,
 } from '@/api/endpoints'
 import { errorMessage } from '@/api/client'
-import type { Cefr } from '@/api/types'
+import type { Cefr, InvitedBy, InvitedUser } from '@/api/types'
 import { PageHeader } from '@/components/Layout'
+import UserAvatar from '@/components/UserAvatar'
 import {
   Badge, EmptyState, ErrorState, ProgressBar, Spinner,
 } from '@/components/ui'
@@ -20,9 +21,11 @@ import SessionsCard from './SessionsCard'
 import VocabCard from './VocabCard'
 import WalletHistoryCard from './WalletHistoryCard'
 import { useLang, useT } from '@/i18n'
-import { fill, formatMinutes } from '@/utils/format'
+import { fill, formatDay, formatMinutes } from '@/utils/format'
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+/** Taklif qilinganlardan nechtasi darrov ko'rinadi (qolgani — "Yana N ta"). */
+const INVITED_PREVIEW = 8
 
 export default function ProfilePage() {
   const t = useT()
@@ -38,6 +41,7 @@ export default function ProfilePage() {
   const [planMessage, setPlanMessage] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [allInvited, setAllInvited] = useState(false)
 
   const confirmDelete = async () => {
     setDeleting(true)
@@ -501,6 +505,40 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+
+          {/* Men taklif qilganlar — kim va qachon. Server yozuvi o'zgarmaydi:
+              taklif bir marta, birinchi havola bo'yicha yoziladi. */}
+          {!!invites.data?.invited && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ ...labelStyle, marginBottom: 8 }}>
+                {t.inviteListTitle} · {invites.data.invited_total}
+              </div>
+              {invites.data.invited.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t.inviteListEmpty}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {(allInvited ? invites.data.invited : invites.data.invited.slice(0, INVITED_PREVIEW)).map((u) => (
+                    <PersonRow key={u.id} person={u} lang={lang} />
+                  ))}
+                  {!allInvited && invites.data.invited.length > INVITED_PREVIEW && (
+                    <button className="btn btn-ghost" onClick={() => setAllInvited(true)}
+                      style={{ alignSelf: 'flex-start', marginTop: 6, padding: '7px 14px', fontSize: 13 }}>
+                      {fill(t.inviteListMore, { n: invites.data.invited.length - INVITED_PREVIEW })}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Meni kim taklif qilgan. U akkauntini o'chirgan bo'lsa ham ismi
+              qoladi (`Invitation.inviter_name` nusxasi), faqat havolasiz. */}
+          {!!invites.data?.invited_by && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ ...labelStyle, marginBottom: 8 }}>{t.invitedByLabel}</div>
+              <PersonRow person={invites.data.invited_by} lang={lang} />
+            </div>
+          )}
         </div>
 
         {/* Shaxsiy lug'at — diktant oxirida "bilmayman" deb bosilgan so'zlar */}
@@ -577,6 +615,35 @@ export default function ProfilePage() {
 const labelStyle: React.CSSProperties = {
   fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)',
   textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 6,
+}
+
+/** Taklif ro'yxatidagi bitta odam: rasm, ism (ochiq profilga havola), sana. */
+function PersonRow({ person, lang }: { person: InvitedUser | InvitedBy; lang: string }) {
+  const body = (
+    <>
+      <UserAvatar url={person.avatar_url} initial={person.initial} size={30} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {person.name}
+        </div>
+        {person.username && (
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>@{person.username}</div>
+        )}
+      </div>
+      <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+        {formatDay(person.invited_at, lang)}
+      </span>
+    </>
+  )
+  const style: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px',
+    borderRadius: 8, color: 'inherit', textDecoration: 'none', minWidth: 0,
+  }
+  return person.id != null ? (
+    <Link to={`/u/${person.id}`} className="user-search-row" style={style}>{body}</Link>
+  ) : (
+    <div style={style}>{body}</div>
+  )
 }
 
 function StatRow({ label, value }: { label: string; value: string | number }) {

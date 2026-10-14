@@ -342,6 +342,11 @@ body.split-dragging iframe { pointer-events: none; }
 }
 .field:focus { border-color: #10B981; }
 
+/* Ochiq profilga olib boradigan qatorlar (qidiruv, reyting, takliflar).
+   Reyting qatorida `is_me` foni inline — shu bois hover fon emas, halqa. */
+.user-search-row:hover, .user-search-row:focus-visible { background: var(--bg-secondary); }
+.lb-row-link:hover, .lb-row-link:focus-visible { box-shadow: inset 0 0 0 1.5px var(--border); }
+
 .badge {
   font-size: 12px;
   font-weight: 600;
