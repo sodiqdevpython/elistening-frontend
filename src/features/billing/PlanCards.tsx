@@ -24,16 +24,16 @@ export const STATUS_PLANS: StaticPlan[] = [
     status: 'Oddiy',
     taglineUz: 'Bepul — sinab ko‘rish uchun', taglineEn: 'Free — to get started',
     priceUz: 'Bepul', priceEn: 'Free', priceUzs: 0,
-    featuresUz: ['Kuniga 8 ta Shorts', 'Kuniga 2 ta video', 'Kuniga 2 ta diktant', 'Reklama bilan'],
-    featuresEn: ['8 Shorts per day', '2 videos per day', '2 dictations per day', 'Ads included'],
+    featuresUz: ['Kuniga 8 ta Shorts', 'Kuniga 3 ta video', 'Kuniga 5 ta diktant'],
+    featuresEn: ['8 Shorts per day', '3 videos per day', '5 dictations per day'],
   },
   {
     code: 'plus',
     status: 'O‘rta',
     taglineUz: 'Faol o‘rganuvchilar uchun', taglineEn: 'For active learners',
     priceUz: '23 000 so‘m', priceEn: '23,000 UZS', priceUzs: 23000,
-    featuresUz: ['Kuniga 30 ta Shorts', 'Kuniga 10 ta video', 'Cheksiz diktant', 'Kuniga 2 ta IELTS test', 'Reklamasiz'],
-    featuresEn: ['30 Shorts per day', '10 videos per day', 'Unlimited dictation', '2 IELTS tests per day', 'No ads'],
+    featuresUz: ['Kuniga 30 ta Shorts', 'Kuniga 10 ta video', 'Cheksiz diktant', 'Kuniga 2 ta IELTS test'],
+    featuresEn: ['30 Shorts per day', '10 videos per day', 'Unlimited dictation', '2 IELTS tests per day'],
     highlight: true,
   },
   {
@@ -41,8 +41,8 @@ export const STATUS_PLANS: StaticPlan[] = [
     status: 'Yuqori',
     taglineUz: 'Cheksiz — hammasi ochiq', taglineEn: 'Unlimited — everything unlocked',
     priceUz: '32 000 so‘m', priceEn: '32,000 UZS', priceUzs: 32000,
-    featuresUz: ['Cheksiz Shorts', 'Cheksiz video', 'Cheksiz diktant', 'Cheksiz IELTS test', 'Reklamasiz'],
-    featuresEn: ['Unlimited Shorts', 'Unlimited videos', 'Unlimited dictation', 'Unlimited IELTS tests', 'No ads'],
+    featuresUz: ['Cheksiz Shorts', 'Cheksiz video', 'Cheksiz diktant', 'Cheksiz IELTS test'],
+    featuresEn: ['Unlimited Shorts', 'Unlimited videos', 'Unlimited dictation', 'Unlimited IELTS tests'],
   },
 ]
 
