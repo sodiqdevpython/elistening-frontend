@@ -858,6 +858,16 @@ export default function DictationPage() {
   // chiqib ekranni to'ldirib qo'ymasin.
   // Test rejimida videoni O'ZIMIZNING start tugmamiz boshlaydi.
   const [testStarted, setTestStarted] = useState(false)
+  // Test player'i yangi mount bo'ladi va darrov tayyor bo'lmaydi — bosilgan
+  // "boshlash" shu yerda kutib turadi va `onReady` da bajariladi (aks holda
+  // tayyor bo'lmagan player'ga `play()` jimgina yo'qolardi).
+  const testAutoplayRef = useRef(false)
+  const onTestPlayerReady = useCallback(() => {
+    if (!testAutoplayRef.current) return
+    testAutoplayRef.current = false
+    ytRef.current?.play?.()
+  }, [])
+  useEffect(() => { if (!testMode) testAutoplayRef.current = false }, [testMode])
 
   /**
    * O'RGATISH (`utils/onboarding.ts`): ro'yxatdan o'tgach **1 hafta**
@@ -887,6 +897,21 @@ export default function DictationPage() {
       side: 'top',
     },
   ], [t])
+
+  const hasTests = Boolean(
+    (data?.mcq_questions?.length || 0)
+    + (data?.tfng_questions?.length || 0)
+    + (data?.fill_gap_questions?.length || 0),
+  )
+  /** Imtihon rejimi. `autoplay` — video ham o'zi boshlansin (videoni bosgan). */
+  const startExam = useCallback((autoplay: boolean) => {
+    if (!isLoggedIn) { setAuthGate('Imtihonni boshlash'); return }
+    setTestMode(true)
+    if (autoplay) {
+      setTestStarted(true)
+      testAutoplayRef.current = true
+    }
+  }, [isLoggedIn])
 
   const solved = Object.values(results).filter((r) => r.isCorrect).length
   const percent = chunks.length ? Math.round((solved / chunks.length) * 100) : 0
@@ -948,12 +973,33 @@ export default function DictationPage() {
     }
   }, [])
 
+  // --- Tinglash vaqti hisobi ---------------------------------------------
+  //
+  // Vaqt FAQAT ish **oxirigacha bajarilganda** qo'shiladi (yarim tashlab
+  // ketilgani hisoblanmaydi), qiymat — audio/video **to'liq davomiyligi**:
+  //
+  //   • diktant — barcha gaplar yozib bo'linganda (tugatish effekti)
+  //   • listening test — natija chiqqanda (`TestView` → `onCompleted`)
+  //
+  // HAR TUGATILGAN URINISH hisoblanadi. Ilgari sahifa ochilganda bir marta
+  // (`awardedRef`) edi: "Boshidan qayta ishlash" yoki exam'ni qayta yechish
+  // umuman qo'shilmasdi — foydalanuvchi ko'p ishlab, vaqt o'smaganini ko'rdi.
+  // Bir urinish bir marta: diktantda `completedRunRef`, testda `TestView`
+  // ichidagi `completedRef` (ikkalasi ham qayta boshlanganda tozalanadi).
+  const awardCompletion = useCallback(() => {
+    const seconds = Math.round(data?.duration_sec || 0)
+    if (seconds <= 0) return
+    void addPlayedSeconds(seconds)
+    void addDictationPlayedTime(slug, seconds * 1000).catch(() => {})
+  }, [addPlayedSeconds, slug, data?.duration_sec])
+
   // ── Tugatish ───────────────────────────────────────────────────────────
   // Aniqlik = birinchi urinishda to'g'ri yozilgan gaplar ulushi (baholash
   // mijozda). Server natijani saqlaydi va joriy urinishni tozalaydi.
   useEffect(() => {
     if (!isFinished || completedRunRef.current || testMode || !chunks.length) return
     completedRunRef.current = true
+    awardCompletion()
     if (saveTimerRef.current) {  // eski holat tugatishdan KEYIN yetib kelmasin
       window.clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
@@ -974,7 +1020,7 @@ export default function DictationPage() {
         void queryClient.invalidateQueries({ queryKey: ['dictations'] })
       })
       .catch(() => {})
-  }, [isFinished, testMode, chunks, firstTry, isLoggedIn, slug, queryClient])
+  }, [isFinished, testMode, chunks, firstTry, isLoggedIn, slug, queryClient, awardCompletion])
 
 
   useEffect(() => {
@@ -1057,45 +1103,12 @@ export default function DictationPage() {
     }
   }, [current?.start_ms])
 
-  // --- Tinglash vaqti hisobi ---------------------------------------------
-  //
-  // **Qoida o'zgardi** (foydalanuvchi so'radi): ilgari har soniyada ijro
-  // etilgan vaqt serverga oqib turardi — ya'ni yarim tashlab ketilgan
-  // diktant ham vaqt yig'ardi. Endi vaqt FAQAT ish **oxirigacha
-  // bajarilganda** bir marta qo'shiladi:
-  //
-  //   • diktant — barcha gaplar yozib bo'linganda (`isFinished`)
-  //   • listening test — natija chiqqanda (`TestView` → `onCompleted`)
-  //
-  // Qo'shiladigan qiymat — audio/video **to'liq davomiyligi**: ish tugadi,
-  // demak kontent to'liq tinglangan deb hisoblaymiz.
-  //
-  // `awardedRef` bir sessiyada ikki marta yozilib ketmasligini ta'minlaydi
-  // (diktant ham, test ham bajarilsa — har biri o'z bayrog'i bilan).
-  const awardedRef = useRef({ dictation: false, test: false })
-
-  const awardCompletion = useCallback((kind: 'dictation' | 'test') => {
-    if (awardedRef.current[kind]) return
-    awardedRef.current[kind] = true
-    const seconds = Math.max(1, Math.round(data?.duration_sec || 0))
-    if (seconds <= 0) return
-    void addPlayedSeconds(seconds)
-    void addDictationPlayedTime(slug, seconds * 1000).catch(() => {})
-  }, [addPlayedSeconds, slug, data?.duration_sec])
-
   // --- Baholash ----------------------------------------------------------
   const advance = useCallback(() => {
     if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)
     if (index < chunks.length - 1) setIndex((i) => i + 1)
     else setFinished(true)
   }, [chunks.length, index])
-
-  // Diktant oxirigacha yozildi — shu paytdagina tinglash vaqti qo'shiladi.
-  // `isFinished` "hamma gap to'g'ri" yoki "Yakunlash" bosilgan holatni
-  // qamrab oladi (yuqorida hisoblanadi).
-  useEffect(() => {
-    if (isFinished) awardCompletion('dictation')
-  }, [isFinished, awardCompletion])
 
   const check = useCallback(() => {
     if (!current) return
@@ -1256,9 +1269,8 @@ export default function DictationPage() {
 
   return (
     <>
-      {/* Kontent sub-header — sarlavha + level. Duration pill'i va progress
-          navbar'da (`TodayTimeIndicator`) va TestView'ning o'z hisoblagichida
-          bor, shu bois bu yerda dublikat qilmaymiz. `↻ Boshidan` faqat
+      {/* Kontent sub-header — sarlavha + level. Progress TestView'ning o'z
+          hisoblagichida bor, shu bois bu yerda dublikat qilmaymiz. `↻ Boshidan` faqat
           diktant rejimida — imtihonda u yerdagi "Diktant" tugmasi bu vazifani
           bajaradi. */}
       <div style={{
@@ -1460,10 +1472,15 @@ export default function DictationPage() {
                     thumbnail turadi — video oldindan ko'rinib turmasin.
                     YouTube player ostida yuklanib turadi, bosgan zahoti
                     ijro darrov boshlanadi. */}
+                {/* O'ngdagi tanlovga e'tibor bermay videoni bosgan bo'lsa:
+                    savollari bor darsda — IMTIHON (video o'zi boshlanadi),
+                    savolsiz darsda — diktant. */}
                 {!started && !testMode && (
                   <VideoPosterOverlay
                     youtubeId={youtubeId}
-                    onClick={isLoggedIn && resumeInfo ? resume : restart}
+                    onClick={hasTests
+                      ? () => startExam(true)
+                      : isLoggedIn && resumeInfo ? resume : restart}
                     primaryLabel="Boshlash"
                   />
                 )}
@@ -1489,11 +1506,7 @@ export default function DictationPage() {
                 chunksCount={chunks.length}
                 typeLabel={data.type_label}
                 cefr={data.cefr_level}
-                hasTests={Boolean(
-                  (data.mcq_questions?.length || 0)
-                  + (data.tfng_questions?.length || 0)
-                  + (data.fill_gap_questions?.length || 0),
-                )}
+                hasTests={hasTests}
                 onStart={() => {
                   if (!isLoggedIn) { setAuthGate('Diktantni boshlash'); return }
                   // View + limit tekshiruvi kontent OCHILGANDA bo'ldi (yuqoridagi
@@ -1506,10 +1519,7 @@ export default function DictationPage() {
                 completed={savedProgress?.completions
                   ? { count: savedProgress.completions, best: savedProgress.best_accuracy ?? 0 }
                   : null}
-                onTest={() => {
-                  if (!isLoggedIn) { setAuthGate('Imtihonni boshlash'); return }
-                  setTestMode(true)
-                }}
+                onTest={() => startExam(false)}
               />
             )}
 
@@ -1667,7 +1677,8 @@ export default function DictationPage() {
                     style={{ width: '100%', display: 'block' }} />
                 ) : hasYouTube ? (
                   <>
-                    <YouTubePlayer ref={ytRef} youtubeId={youtubeId} nativeControls />
+                    <YouTubePlayer ref={ytRef} youtubeId={youtubeId} nativeControls
+                      onReady={onTestPlayerReady} />
                     {/* O'Z start tugmamiz. Ilgari test rejimida video o'zi
                         boshlanmasdi va foydalanuvchi YouTube iframe'ini bir
                         marta bosishga MAJBUR edi (foydalanuvchi shikoyati).
@@ -1675,7 +1686,11 @@ export default function DictationPage() {
                     {!testStarted && (
                       <button
                         data-tour="video-start"
-                        onClick={() => { setTestStarted(true); ytRef.current?.play?.() }}
+                        onClick={() => {
+                          setTestStarted(true)
+                          testAutoplayRef.current = true
+                          ytRef.current?.play?.()
+                        }}
                         style={{
                           position: 'absolute', inset: 0, zIndex: 2,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1731,7 +1746,7 @@ export default function DictationPage() {
                 fill={data.fill_gap_questions ?? []}
                 onExit={() => setTestMode(false)}
                 onSeek={seekTo}
-                onCompleted={() => awardCompletion('test')}
+                onCompleted={awardCompletion}
                 onReport={() => setReportOpen(true)}
                 onQuestionFeedback={() => setQuestionFbOpen(true)}
                 reported={feedback.reported}
@@ -1966,12 +1981,17 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
           <span style={{ fontSize: 13.5, color: 'var(--text-secondary)', textAlign: 'left' }}>
             {fill(t.resumeNote, { n: resume.n, total: resume.total })}
           </span>
-          <button onClick={resume.onResume} className="btn btn-primary"
+          <button onClick={resume.onResume}
+            className={`btn btn-primary${hasTests ? '' : ' attention-pulse'}`}
             style={{ padding: '10px 18px', borderRadius: 10, fontWeight: 800 }}>
             {t.resumeBtn}
           </button>
         </div>
       )}
+      {/* Sahifaga kirganda tanlov kartalari ketma-ket 3 marta yonib-o'chadi
+          (`.attention-pulse`, global.css) — foydalanuvchi o'ngdan birini
+          tanlashi kerakligini sezsin. Videoni bosib qo'ysa ham bo'ladi:
+          savollari bor darsda u imtihonni boshlaydi. */}
       {/* IERARXIYA (foydalanuvchi so'radi): savollari bor kontentda
           **Listening test** asosiy harakat — u qiziqroq va kirish osonroq.
           Diktant esa ikkinchi darajaga tushadi (matnli havola).
@@ -1985,7 +2005,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
           width: '100%', maxWidth: 520, marginTop: 6,
         }}>
-          <button onClick={onTest} className="modechoice-btn" type="button">
+          <button onClick={onTest} className="modechoice-btn attention-pulse" type="button">
             <span className="modechoice-icon" aria-hidden>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1999,7 +2019,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
               Videoni ko'rib savollarga javob bering
             </span>
           </button>
-          <button onClick={onStart} className="modechoice-btn" type="button">
+          <button onClick={onStart} className="modechoice-btn attention-pulse attention-pulse-2" type="button">
             <span className="modechoice-icon" aria-hidden>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -2021,7 +2041,7 @@ function StartCard({ title, chunksCount, typeLabel, cefr, onStart, hasTests, onT
           <button
             onClick={onStart}
             // Davom ettirish bo'lsa asosiy tugma o'sha — bu "boshidan".
-            className={resume ? 'btn btn-ghost' : 'btn btn-primary'}
+            className={resume ? 'btn btn-ghost' : 'btn btn-primary attention-pulse'}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               fontSize: 16, padding: '15px 28px', borderRadius: 13,
@@ -2386,7 +2406,8 @@ function TestView({
   )
 
   // Natija chiqqan payt — test "oxirigacha ishlangan" deb hisoblanadi va
-  // tinglash vaqti profilga qo'shiladi. Bir marta (`completedRef`).
+  // tinglash vaqti profilga qo'shiladi. Bir URINISHDA bir marta
+  // (`completedRef`); "Qaytadan" (`reset`) yangi urinish — u ham hisoblanadi.
   const completedRef = useRef(false)
   useEffect(() => {
     if (!showResult || completedRef.current) return
@@ -2406,6 +2427,7 @@ function TestView({
     setAnswers({})
     setCommitted({})
     setSubmitted(false)
+    completedRef.current = false
     panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 

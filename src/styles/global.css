@@ -167,6 +167,19 @@ body.split-dragging iframe { pointer-events: none; }
   .modechoice { grid-template-columns: 1fr !important; }
 }
 
+/* Tanlov kartalari sahifaga kirganda ketma-ket 3 marta yonib-o'chadi —
+   foydalanuvchi o'ngdan birini tanlashi kerakligini sezsin (videoni bosib
+   qo'ysa ham bo'ladi). Ikkinchi karta yarim davr kechikadi: navbatma-navbat. */
+@keyframes attention-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  45% { box-shadow: 0 0 0 5px rgba(16, 185, 129, .28); border-color: #10B981; }
+}
+.attention-pulse { animation: attention-pulse 1s ease-in-out .7s 3 both; }
+.attention-pulse-2 { animation-delay: 1.2s; }
+@media (prefers-reduced-motion: reduce) {
+  .attention-pulse { animation: none; }
+}
+
 /* O'rgatish (onboarding) endi `components/CoachTour.tsx` — o'q + spotlight
    bilan, `document.body` ga portal qilinadi. Bu yerdagi eski `.onb-*`
    ipuchi animatsiyalari (`OnboardingHint.tsx` bilan birga) olib tashlandi. */

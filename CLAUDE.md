@@ -172,15 +172,18 @@ ochilib qolmaydi.
 **Qoida o'zgardi.** Ilgari har soniyada serverga oqib turardi; endi vaqt
 FAQAT ish oxirigacha bajarilganda **bir marta** qo'shiladi:
 
-- Diktant barcha gaplar yozilgach (`isFinished`) → `awardCompletion('dictation')`
-- Listening test natijasi chiqqach (`TestView` → `onCompleted`) → `awardCompletion('test')`
+- Diktant barcha gaplar yozilgach — tugatish effekti → `awardCompletion()`
+- Listening test natijasi chiqqach (`TestView` → `onCompleted`) → `awardCompletion()`
 - Qo'shiladigan qiymat — `data.duration_sec` (kontentning **to'liq
   davomiyligi**): ish tugadi, demak kontent to'liq tinglangan
-- `awardedRef` ikki marta yozilishning oldini oladi (diktant va test alohida
-  bayroqli — foydalanuvchi ikkalasini ham bajarsa ikki marta qo'shiladi)
+- **HAR TUGATILGAN URINISH hisoblanadi** — bir urinishda bir marta:
+  diktantda `completedRunRef`, testda `TestView.completedRef` (ikkalasi ham
+  "Boshidan"/"Qayta ishlash" da tozalanadi). Ilgari sahifa ochilganda faqat
+  bir marta edi (`awardedRef`) — qayta ishlangan diktant va exam umuman
+  qo'shilmasdi, foydalanuvchi "vaqt noto'g'ri" deb ko'rdi.
 
-Navbar indikatori endi "yig'ilgan sekund" emas, **kontent davomiyligini**
-ko'rsatadi — "tugatsangiz shuncha qo'shiladi".
+Navbardagi tinglash vaqti pill'i (`TodayTimeIndicator`) va o'ng pastdagi
+"Shorts" tugmasi foydalanuvchi so'rovi bilan **olib tashlangan**.
 
 Streak tizimdan butunlay olib tashlandi.
 
@@ -534,9 +537,10 @@ boshidan (loop). Tab yashirilsa to'xtaydi.
 ### `components/Layout.tsx`
 
 Navbar: **Asosiy · Shorts · Videolar · Filmlar · Multfilmlar · Yangiliklar ·
-Reyting** + (agar admin sozlagan bo'lsa) **Bog'lanish** · Profil + tinglash
-vaqti pill + tungi rejim toggle (SVG) + til (UZ/EN). Mobil ekranda hamburger.
-Shorts float button o'ng pastda.
+Reyting** + (agar admin sozlagan bo'lsa) **Bog'lanish** · Profil + hamyon
+pill'i + tungi rejim toggle (SVG) + til (UZ/EN). Mobil ekranda hamburger.
+Tinglash vaqti pill'i va o'ng pastdagi "Shorts" tugmasi **yo'q** (olib
+tashlangan — qaytarmang).
 
 **Bog'lanish** — `fetchSiteConfig()` (`GET /api/config/`) admin kiritgan
 `contact_telegram` username'ni beradi. Bo'sh bo'lmasa navbarda tashqi link
@@ -625,6 +629,14 @@ bitta pipeline).
 - Ostida **kichik ikkinchi darajali** havola "yoki diktant yozish (N ta gap)"
 Bu ko'rinish savollari bor har diktantda yoqiladi. Savollar yo'q kontentda
 diktant tugmasi asosiy va yagona.
+
+**Videoni bosib qo'ysa** (o'ngdagi tanlovga e'tibor bermay): savollari bor
+darsda **imtihon** ochiladi va video o'zi boshlanadi (`startExam(true)`;
+yangi test player tayyor bo'lgach `onTestPlayerReady` ijro etadi —
+tayyor bo'lmagan player'ga `play()` jimgina yo'qolardi). Savolsiz darsda —
+diktant. **Tanlov kartalari** sahifaga kirganda ketma-ket 3 marta yonib-
+o'chadi (`.attention-pulse`, ikkinchisi yarim davr kechikib) — foydalanuvchi
+o'ngdan birini tanlash kerakligini sezsin; `prefers-reduced-motion` da yo'q.
 
 ### Chunk bo'lish — ikki pog'onali
 

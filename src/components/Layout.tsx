@@ -7,31 +7,7 @@ import { useAuth } from '@/store/auth'
 import { fetchSiteConfig } from '@/api/endpoints'
 import { HeadphoneIcon, MoonIcon, SunIcon } from './ui'
 import { WalletPill } from './WalletPill'
-import { formatMinutes } from '@/utils/format'
 import LimitGate from './LimitGate'
-
-/**
- * Navbar'da bugungi tinglash vaqti — istalgan sahifada ko'rinib turadi.
- * Auth store `today_seconds` ni yangilaydi (dars davomida audio play qilinganda).
- */
-function TodayTimeIndicator() {
-  const t = useT()
-  const { user, isLoggedIn } = useAuth()
-  if (!isLoggedIn || !user) return null
-  return (
-    <span title={t.todayListenTime}
-      data-today-pill
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700,
-        background: 'var(--bg-secondary)', color: 'var(--text-secondary)',
-        border: '1px solid var(--border)',
-      }}>
-      <HeadphoneIcon size={14} strokeWidth={1.8} />
-      {formatMinutes(user.today_seconds)}
-    </span>
-  )
-}
 
 const NAV = [
   { to: '/', key: 'tabCatalog', end: true },
@@ -177,7 +153,6 @@ export default function Layout() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Balans + akkaunt ID — kirgan foydalanuvchiga har sahifada. */}
           <WalletPill />
-          <TodayTimeIndicator />
           <button onClick={toggleTheme}
             style={{ ...toggleBtn, padding: '6px 10px', display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}
             aria-label={theme === 'light' ? t.themeDark : t.themeLight}>
@@ -233,25 +208,6 @@ export default function Layout() {
       {/* Kunlik limit oynasi — istalgan endpoint 403 `limit_reached` qaytarsa
           ochiladi (ilova darajasida bitta nusxa). */}
       <LimitGate />
-
-      {/* Shorts uchun tez kirish tugmasi — labeled pill (ikonka + matn),
-          shu bois foydalanuvchi nima ekanligini bir qarashda tushunadi. */}
-      {!location.pathname.startsWith('/shorts') && (
-        <Link to="/shorts" aria-label={t.tabShorts} style={{
-          position: 'fixed', right: 20, bottom: 20, zIndex: 60,
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '10px 16px 10px 12px', borderRadius: 999,
-          background: 'var(--text)', color: 'var(--bg)',
-          boxShadow: '0 6px 20px rgba(0,0,0,.18)',
-          fontSize: 13, fontWeight: 700, textDecoration: 'none',
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="5" y="2" width="14" height="20" rx="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M10 9L15 12L10 15V9Z" fill="currentColor" />
-          </svg>
-          {t.tabShorts}
-        </Link>
-      )}
 
       <style>{`
         @media (max-width: 860px) {

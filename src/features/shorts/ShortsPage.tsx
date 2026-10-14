@@ -1991,8 +1991,9 @@ function spawnCoinReward(seconds: number) {
     'will-change:transform,opacity',
   ].join(';')
   document.body.appendChild(el)
-  // Yuqoriga uchish nishoni: navbardagi 🎧 pill (Layout.tsx'da). Uni
-  // topa olmasak ekranning o'ng-yuqori chetiga uchadi.
+  // Yuqoriga uchish nishoni: `[data-today-pill]` bo'lsa o'sha, aks holda
+  // ekranning o'ng-yuqori cheti (navbardagi tinglash vaqti pill'i
+  // foydalanuvchi so'rovi bilan olib tashlangan).
   const target = document.querySelector<HTMLElement>('[data-today-pill]')
   const rect = target?.getBoundingClientRect()
   const dx = rect ? (rect.left + rect.width / 2) - (window.innerWidth - 28 - 40) : 0
