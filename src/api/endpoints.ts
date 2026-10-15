@@ -384,10 +384,13 @@ export async function trackActivity(seconds: number) {
   return data
 }
 
-export async function fetchLeaderboard(period: 7 | 30) {
-  const { data } = await api.get<{ period: number; my_hours: number; results: LeaderboardRow[] }>(
-    '/leaderboard/', { params: { period } },
-  )
+/** Reyting — HAMMA foydalanuvchi, eng ko'p tinglagan tepada, 30 tadan sahifalab. */
+/** `period` — oxirgi N kun (1 = bugun), 0 = butun vaqt. */
+export async function fetchLeaderboard(period: number, page = 1) {
+  const { data } = await api.get<{
+    period: number; my_hours: number; my_seconds?: number; results: LeaderboardRow[]
+    count?: number; page?: number; num_pages?: number
+  }>('/leaderboard/', { params: { period, page } })
   return data
 }
 

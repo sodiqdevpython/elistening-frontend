@@ -39,7 +39,7 @@ Manzil: http://localhost:5173
 | **`/movies`, `/cartoons`** | → `/topics/movie` va `/topics/cartoon` ga **redirect**. Film/multfilm endi oddiy VIDEO (`Dictation.type`), ya'ni boshqa mavzular bilan bir xil grid va bir xil video sahifasi. Ilgari ular `Short` edi va vertikal feed'da ochilardi — uzun film tik shablonda chiqib, "na video na shorts" bo'lardi (`../backend/CLAUDE.md` → "Modelni HAVOLA tanlaydi") |
 | `/movies/:id`, `/cartoons/:id` | ShortsPage feed, o'sha videoga pin qilingan |
 | `/videos` | → `/topics/random-videos` ga redirect (soxta sahifa o'chirildi) |
-| `/leaderboard` | Reyting TOP 30 + foydalanuvchi qidiruvi (kirganlarga). Qator bosilsa profil |
+| `/leaderboard` | Reyting — BITTA jadval: HAMMA foydalanuvchi, eng ko'p tinglagan tepada, davr filtri (Bugun / 7 / 30 / 90 kun / Hammasi, default 7) va sahifalash (30 tadan). Qidiruv tepada alohida qatorda. Qator bosilsa profil |
 | **`/u/:id`** | **Boshqa foydalanuvchining ochiq profili** (`features/users/UserProfilePage.tsx`) |
 | `/profile` | Profil, statistika, taklif havolasi |
 | **`/profile/billing`** | **Tariflar** — bugungi sarf + tarif tanlash (bot shu manzilni yuboradi) |

@@ -121,7 +121,7 @@ export const STRINGS = {
     newsSummaryLabel: 'Qisqacha mazmuni', newsBackToCatalog: 'Yangiliklar ro‘yxatiga qaytish',
     newsLoadMoreBtn: 'Yana yuklash',
 
-    lb7Title: 'TOP 30 — so‘nggi 7 kun', lb30Title: 'TOP 30 — so‘nggi 30 kun',
+    lbTitle: 'Reyting', lbPeriodToday: 'Bugun', lbPeriodDays: '{n} kun', lbPeriodAll: 'Hammasi',
     yourActiveTime: 'Sizning faol vaqtingiz', rankHeader: '#',
     usernameHeader: 'Foydalanuvchi', activeTimeHeader: 'Faol vaqt', hoursUnit: 'soat', minutesUnit: 'daq',
 
@@ -512,7 +512,7 @@ export const STRINGS = {
     newsSummaryLabel: 'Summary', newsBackToCatalog: 'Back to news list',
     newsLoadMoreBtn: 'Show more',
 
-    lb7Title: 'TOP 30 — last 7 days', lb30Title: 'TOP 30 — last 30 days',
+    lbTitle: 'Leaderboard', lbPeriodToday: 'Today', lbPeriodDays: '{n} days', lbPeriodAll: 'All time',
     yourActiveTime: 'Your active time', rankHeader: '#',
     usernameHeader: 'Username', activeTimeHeader: 'Active time', hoursUnit: 'hours', minutesUnit: 'min',
 
